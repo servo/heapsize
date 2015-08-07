@@ -2,3 +2,7 @@
 name = "heapsize"
 version = "0.1.0"
 authors = ["Josh Matthews <josh@joshmatthews.net>"]
+
+[dependencies]
+libc = "0.1"
+
