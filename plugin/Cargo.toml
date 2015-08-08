@@ -1,0 +1,10 @@
+[package]
+name = "heapsize_plugin"
+version = "0.0.1"
+authors = ["The Servo Project Developers"]
+
+[lib]
+name = "heapsize_plugin"
+path = "src/lib.rs"
+plugin = true
+
