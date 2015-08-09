@@ -3,7 +3,7 @@ name = "heapsize"
 version = "0.1.0"
 authors = [ "The Servo Project Developers" ]
 description = "Infrastructure for measuring the total runtime size of an object on the heap"
-license = "MPL 2.0"
+license = "MPL-2.0"
 repository = "https://github.com/servo/heapsize"
 
 [dependencies]
