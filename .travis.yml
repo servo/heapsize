@@ -3,3 +3,7 @@ language: rust
 rust: nightly
 notifications:
   webhooks: http://build.servo.org:54856/travis
+
+script:
+ - cd heapsize && cargo build && cargo test
+ - cd heapsize_macros && cargo build && cargo test
