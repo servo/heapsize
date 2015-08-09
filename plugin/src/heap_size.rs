@@ -53,21 +53,22 @@ fn heap_size_substructure(cx: &mut ExtCtxt, trait_span: Span, substr: &Substruct
     };
 
     fields.iter().fold(cx.expr_usize(trait_span, 0), |acc, ref item| {
-        if item.attrs.iter()
-               .find(|ref a| {
-                    if a.check_name("ignore_heap_size_of") {
-                        match a.node.value.node {
-                            MetaNameValue(..) => (),
-                            _ => cx.span_err(a.span, "#[ignore_heap_size_of] \
-                                                      should have an explanation, \
-                                                      e.g. #[ignore_heap_size_of = \"\"]")
-                        }
-                        true
-                    } else {
-                        false
-                    }
-                })
-               .is_some() {
+        let has_ignore = item.attrs.iter()
+           .find(|ref a| {
+               if a.check_name("ignore_heap_size_of") {
+                   match a.node.value.node {
+                       MetaNameValue(..) => (),
+                       _ => cx.span_err(a.span, "#[ignore_heap_size_of] \
+                                                 should have an explanation, \
+                                                 e.g. #[ignore_heap_size_of = \"\"]")
+                   }
+                   true
+               } else {
+                   false
+               }
+           })
+           .is_some();
+        if has_ignore {
             acc
         } else {
             cx.expr_binary(item.span, BiAdd, acc,
@@ -75,6 +76,6 @@ fn heap_size_substructure(cx: &mut ExtCtxt, trait_span: Span, substr: &Substruct
                                                item.self_.clone(),
                                                substr.method_ident,
                                                Vec::new()))
-                        }
+        }
     })
 }
