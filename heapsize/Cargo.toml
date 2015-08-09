@@ -13,3 +13,5 @@ path = "lib.rs"
 [dependencies]
 libc = "0.1"
 
+[dependencies.heapsize_macros]
+path = "../heapsize_macros"
