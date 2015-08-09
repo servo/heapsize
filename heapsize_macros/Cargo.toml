@@ -1,0 +1,12 @@
+[package]
+name = "heapsize_macros"
+version = "0.1.0"
+authors = [ "The Servo Project Developers" ]
+description = "Plugins for the heapsize crate"
+license = "MPL-2.0"
+repository = "https://github.com/servo/heapsize"
+
+[lib]
+name = "heapsize_macros"
+plugin = true
+path = "lib.rs"
