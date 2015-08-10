@@ -6,6 +6,9 @@ description = "Infrastructure for measuring the total runtime size of an object 
 license = "MPL-2.0"
 repository = "https://github.com/servo/heapsize"
 
+[features]
+unstable = []
+
 [dependencies]
 libc = "0.1"
 

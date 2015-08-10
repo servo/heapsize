@@ -4,6 +4,8 @@
 
 //! Data structure measurement.
 
+#![cfg_attr(feature = "unstable", feature(hashmap_hasher))]
+
 extern crate libc;
 
 use libc::{c_void, size_t};
