@@ -14,6 +14,7 @@ use std::collections::{HashMap, LinkedList};
 #[cfg(feature = "unstable")]
 use std::collections::hash_state;
 use std::hash::Hash;
+use std::marker::PhantomData;
 use std::mem::{size_of, transmute};
 use std::sync::Arc;
 use std::rc::Rc;
@@ -247,4 +248,4 @@ macro_rules! known_heap_size(
 known_heap_size!(0, u8, u16, u32, u64, usize);
 known_heap_size!(0, i8, i16, i32, i64, isize);
 known_heap_size!(0, bool, f32, f64);
-
+known_heap_size!(0, PhantomData<T>);
