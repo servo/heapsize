@@ -9,6 +9,7 @@
 extern crate libc;
 
 use libc::{c_void, size_t};
+use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, LinkedList};
 #[cfg(feature = "unstable")]
@@ -85,6 +86,15 @@ impl<T: HeapSizeOf> HeapSizeOf for Option<T> {
         match *self {
             None => 0,
             Some(ref x) => x.heap_size_of_children()
+        }
+    }
+}
+
+impl<'a, B: ?Sized + ToOwned> HeapSizeOf for Cow<'a, B> where B::Owned: HeapSizeOf {
+    fn heap_size_of_children(&self) -> usize {
+        match *self {
+            Cow::Borrowed(_) => 0,
+            Cow::Owned(ref b) => b.heap_size_of_children(),
         }
     }
 }
