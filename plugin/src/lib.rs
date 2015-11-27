@@ -12,9 +12,9 @@
 #[macro_use]
 extern crate syntax;
 #[macro_use]
-extern crate rustc;
+extern crate rustc_plugin;
 
-use rustc::plugin::Registry;
+use rustc_plugin::Registry;
 use syntax::ext::base::*;
 
 use syntax::parse::token::intern;
