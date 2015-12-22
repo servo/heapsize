@@ -18,7 +18,7 @@ use syntax::ptr::P;
 use syntax::ast::*;
 use syntax::attr::AttrMetaMethods;
 use syntax::ext::build::AstBuilder;
-use syntax::ext::deriving::generic::*;
+use syntax_ext::deriving::generic::*;
 
 pub fn expand_heap_size(cx: &mut ExtCtxt, span: Span, mitem: &MetaItem,
                         item: &Annotatable, push: &mut FnMut(Annotatable)) {

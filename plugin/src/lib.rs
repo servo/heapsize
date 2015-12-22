@@ -12,6 +12,8 @@
 #[macro_use]
 extern crate syntax;
 #[macro_use]
+extern crate syntax_ext;
+#[macro_use]
 extern crate rustc_plugin;
 
 use rustc_plugin::Registry;
