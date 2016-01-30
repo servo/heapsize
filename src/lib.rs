@@ -163,6 +163,13 @@ impl<K: HeapSizeOf, V: HeapSizeOf> HeapSizeOf for HashMap<K, V>
     }
 }
 
+// PhantomData is always 0.
+impl<T> HeapSizeOf for PhantomData<T> {
+    fn heap_size_of_children(&self) -> usize {
+        0
+    }
+}
+
 // FIXME(njn): We can't implement HeapSizeOf accurately for LinkedList because it requires access
 // to the private Node type. Eventually we'll want to add HeapSizeOf (or equivalent) to Rust
 // itself. In the meantime, we use the dirty hack of transmuting LinkedList into an identical type
@@ -260,4 +267,3 @@ known_heap_size!(0, u8, u16, u32, u64, usize);
 known_heap_size!(0, i8, i16, i32, i64, isize);
 known_heap_size!(0, bool, f32, f64);
 known_heap_size!(0, Ipv4Addr, Ipv6Addr);
-known_heap_size!(0, PhantomData<T>);
