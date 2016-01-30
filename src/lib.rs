@@ -175,7 +175,7 @@ impl<T: HeapSizeOf> HeapSizeOf for LinkedList<T> {
     fn heap_size_of_children(&self) -> usize {
         let mut size = 0;
         for item in self {
-            size += 2 * size_of::<usize>() + item.heap_size_of_children();
+            size += 2 * size_of::<usize>() + size_of::<T>() + item.heap_size_of_children();
         }
         size
     }
