@@ -16,7 +16,7 @@ use std::collections::{HashMap, LinkedList};
 use std::collections::hash_state;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use std::mem::{size_of, transmute};
+use std::mem::size_of;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 use std::rc::Rc;
@@ -170,71 +170,15 @@ impl<T> HeapSizeOf for PhantomData<T> {
     }
 }
 
-// FIXME(njn): We can't implement HeapSizeOf accurately for LinkedList because it requires access
-// to the private Node type. Eventually we'll want to add HeapSizeOf (or equivalent) to Rust
-// itself. In the meantime, we use the dirty hack of transmuting LinkedList into an identical type
-// (LinkedList2) and measuring that.
+// A linked list has an overhead of two words per item.
 impl<T: HeapSizeOf> HeapSizeOf for LinkedList<T> {
     fn heap_size_of_children(&self) -> usize {
-        let list2: &LinkedList2<T> = unsafe { transmute(self) };
-        list2.heap_size_of_children()
-    }
-}
-
-struct LinkedList2<T> {
-    _length: usize,
-    list_head: Link<T>,
-    _list_tail: Rawlink<Node<T>>,
-}
-
-type Link<T> = Option<Box<Node<T>>>;
-
-struct Rawlink<T> {
-    _p: *mut T,
-}
-
-struct Node<T> {
-    next: Link<T>,
-    _prev: Rawlink<Node<T>>,
-    value: T,
-}
-
-impl<T: HeapSizeOf> HeapSizeOf for Node<T> {
-    // Unlike most heap_size_of_children() functions, this one does *not* measure descendents.
-    // Instead, LinkedList2<T>::heap_size_of_children() handles that, so that it can use iteration
-    // instead of recursion, which avoids potentially blowing the stack.
-    fn heap_size_of_children(&self) -> usize {
-        self.value.heap_size_of_children()
-    }
-}
-
-impl<T: HeapSizeOf> HeapSizeOf for LinkedList2<T> {
-    fn heap_size_of_children(&self) -> usize {
         let mut size = 0;
-        let mut curr: &Link<T> = &self.list_head;
-        while curr.is_some() {
-            size += (*curr).heap_size_of_children();
-            curr = &curr.as_ref().unwrap().next;
+        for item in self {
+            size += 2 * size_of::<usize>() + item.heap_size_of_children();
         }
         size
     }
-}
-
-// This is a basic sanity check. If the representation of LinkedList changes such that it becomes a
-// different size to LinkedList2, this will fail at compile-time.
-#[allow(dead_code)]
-#[test]
-#[should_panic]
-fn linked_list2_check() {
-    unsafe {
-        transmute::<LinkedList<i32>, LinkedList2<i32>>(panic!());
-    }
-}
-
-// Currently, types that implement the Drop type are larger than those that don't. Because
-// LinkedList implements Drop, LinkedList2 must also so that linked_list2_check() doesn't fail.
-impl<T> Drop for LinkedList2<T> {
-    fn drop(&mut self) {}
 }
 
 /// For use on types defined in external crates
