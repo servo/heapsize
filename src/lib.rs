@@ -11,7 +11,7 @@ extern crate libc;
 use libc::{c_void, size_t};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
-use std::collections::{HashMap, LinkedList};
+use std::collections::{BTreeMap, HashMap, LinkedList};
 #[cfg(feature = "unstable")]
 use std::collections::hash_state;
 use std::hash::Hash;
@@ -176,6 +176,19 @@ impl<T: HeapSizeOf> HeapSizeOf for LinkedList<T> {
         let mut size = 0;
         for item in self {
             size += 2 * size_of::<usize>() + size_of::<T>() + item.heap_size_of_children();
+        }
+        size
+    }
+}
+
+// FIXME: Overhead for the BTreeMap nodes is not accounted for.
+impl<K: HeapSizeOf, V: HeapSizeOf> HeapSizeOf for BTreeMap<K, V> {
+    fn heap_size_of_children(&self) -> usize {
+        let mut size = 0;
+        for (key, value) in self.iter() {
+            size += size_of::<(K, V)>() +
+                    key.heap_size_of_children() +
+                    value.heap_size_of_children();
         }
         size
     }
