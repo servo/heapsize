@@ -218,6 +218,7 @@ macro_rules! known_heap_size(
     );
 );
 
+known_heap_size!(0, char);
 known_heap_size!(0, u8, u16, u32, u64, usize);
 known_heap_size!(0, i8, i16, i32, i64, isize);
 known_heap_size!(0, bool, f32, f64);
