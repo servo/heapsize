@@ -4,8 +4,6 @@
 
 //! Data structure measurement.
 
-#![cfg_attr(feature = "unstable", feature(hashmap_hasher))]
-
 extern crate libc;
 
 use libc::{c_void, size_t};
@@ -13,7 +11,7 @@ use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap, LinkedList};
 #[cfg(feature = "unstable")]
-use std::collections::hash_state;
+use std::hash::BuildHasher;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem::size_of;
@@ -141,7 +139,7 @@ impl<T> HeapSizeOf for Vec<Rc<T>> {
 
 #[cfg(feature = "unstable")]
 impl<K: HeapSizeOf, V: HeapSizeOf, S> HeapSizeOf for HashMap<K, V, S>
-    where K: Eq + Hash, S: hash_state::HashState {
+    where K: Eq + Hash, S: BuildHasher {
     fn heap_size_of_children(&self) -> usize {
         //TODO(#6908) measure actual bucket memory usage instead of approximating
         let size = self.capacity() * (size_of::<V>() + size_of::<K>());
