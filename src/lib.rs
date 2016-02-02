@@ -17,6 +17,7 @@ use std::marker::PhantomData;
 use std::mem::size_of;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
 use std::rc::Rc;
 
 extern {
@@ -222,4 +223,5 @@ known_heap_size!(0, char);
 known_heap_size!(0, u8, u16, u32, u64, usize);
 known_heap_size!(0, i8, i16, i32, i64, isize);
 known_heap_size!(0, bool, f32, f64);
+known_heap_size!(0, AtomicBool, AtomicIsize, AtomicUsize);
 known_heap_size!(0, Ipv4Addr, Ipv6Addr);

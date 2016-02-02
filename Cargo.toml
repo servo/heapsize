@@ -1,6 +1,6 @@
 [package]
 name = "heapsize"
-version = "0.2.2"
+version = "0.2.3"
 authors = [ "The Servo Project Developers" ]
 description = "Infrastructure for measuring the total runtime size of an object on the heap"
 license = "MPL-2.0"
