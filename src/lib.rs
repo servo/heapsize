@@ -90,12 +90,27 @@ impl<T: HeapSizeOf> HeapSizeOf for Option<T> {
     }
 }
 
+impl<T: HeapSizeOf, E: HeapSizeOf> HeapSizeOf for Result<T, E> {
+    fn heap_size_of_children(&self) -> usize {
+        match *self {
+            Ok(ref x) => x.heap_size_of_children(),
+            Err(ref e) => e.heap_size_of_children(),
+        }
+    }
+}
+
 impl<'a, B: ?Sized + ToOwned> HeapSizeOf for Cow<'a, B> where B::Owned: HeapSizeOf {
     fn heap_size_of_children(&self) -> usize {
         match *self {
             Cow::Borrowed(_) => 0,
             Cow::Owned(ref b) => b.heap_size_of_children(),
         }
+    }
+}
+
+impl HeapSizeOf for () {
+    fn heap_size_of_children(&self) -> usize {
+        0
     }
 }
 
