@@ -81,6 +81,12 @@ impl HeapSizeOf for String {
     }
 }
 
+impl HeapSizeOf for &'static str {
+    fn heap_size_of_children(&self) -> usize {
+        0
+    }
+}
+
 impl<T: HeapSizeOf> HeapSizeOf for Option<T> {
     fn heap_size_of_children(&self) -> usize {
         match *self {
