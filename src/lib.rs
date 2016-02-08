@@ -4,9 +4,6 @@
 
 //! Data structure measurement.
 
-extern crate libc;
-
-use libc::{c_void, size_t};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap, LinkedList};
@@ -16,6 +13,7 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::os::raw::c_void;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
 use std::rc::Rc;
@@ -30,15 +28,19 @@ extern {
     // platforms `JEMALLOC_USABLE_SIZE_CONST` is `const` and on some it is empty. But in practice
     // this function doesn't modify the contents of the block that `ptr` points to, so we use
     // `*const c_void` here.
-    fn je_malloc_usable_size(ptr: *const c_void) -> size_t;
+    fn je_malloc_usable_size(ptr: *const c_void) -> usize;
 }
 
-// A wrapper for je_malloc_usable_size that handles `EMPTY` and returns `usize`.
-pub fn heap_size_of(ptr: *const c_void) -> usize {
+/// A wrapper for je_malloc_usable_size that handles `EMPTY` and returns `usize`.
+///
+/// `unsafe` because the caller must ensure that the pointer is from jemalloc.
+/// FIXME: This probably interacts badly with custom allocators:
+/// https://doc.rust-lang.org/book/custom-allocators.html
+pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
     if ptr == 0x01 as *const c_void {
         0
     } else {
-        unsafe { je_malloc_usable_size(ptr) as usize }
+        je_malloc_usable_size(ptr)
     }
 }
 
@@ -71,17 +73,21 @@ pub trait HeapSizeOf {
 impl<T: HeapSizeOf> HeapSizeOf for Box<T> {
     fn heap_size_of_children(&self) -> usize {
         // Measure size of `self`.
-        heap_size_of(&**self as *const T as *const c_void) + (**self).heap_size_of_children()
+        unsafe {
+            heap_size_of(&**self as *const T as *const c_void) + (**self).heap_size_of_children()
+        }
     }
 }
 
 impl HeapSizeOf for String {
     fn heap_size_of_children(&self) -> usize {
-        heap_size_of(self.as_ptr() as *const c_void)
+        unsafe {
+            heap_size_of(self.as_ptr() as *const c_void)
+        }
     }
 }
 
-impl HeapSizeOf for &'static str {
+impl<'a, T: ?Sized> HeapSizeOf for &'a T {
     fn heap_size_of_children(&self) -> usize {
         0
     }
@@ -146,8 +152,10 @@ impl<T: HeapSizeOf + Copy> HeapSizeOf for Cell<T> {
 
 impl<T: HeapSizeOf> HeapSizeOf for Vec<T> {
     fn heap_size_of_children(&self) -> usize {
-        heap_size_of(self.as_ptr() as *const c_void) +
-            self.iter().fold(0, |n, elem| n + elem.heap_size_of_children())
+        unsafe {
+            heap_size_of(self.as_ptr() as *const c_void)
+                + self.iter().fold(0, |n, elem| n + elem.heap_size_of_children())
+        }
     }
 }
 
@@ -155,7 +163,9 @@ impl<T> HeapSizeOf for Vec<Rc<T>> {
     fn heap_size_of_children(&self) -> usize {
         // The fate of measuring Rc<T> is still undecided, but we still want to measure
         // the space used for storing them.
-        heap_size_of(self.as_ptr() as *const c_void)
+        unsafe {
+            heap_size_of(self.as_ptr() as *const c_void)
+        }
     }
 }
 

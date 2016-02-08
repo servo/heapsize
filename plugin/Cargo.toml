@@ -11,3 +11,5 @@ name = "heapsize_plugin"
 path = "src/lib.rs"
 plugin = true
 
+[dev-dependencies]
+heapsize = {path = ".."}

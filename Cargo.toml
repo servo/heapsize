@@ -1,6 +1,6 @@
 [package]
 name = "heapsize"
-version = "0.2.5"
+version = "0.3.0"
 authors = [ "The Servo Project Developers" ]
 description = "Infrastructure for measuring the total runtime size of an object on the heap"
 license = "MPL-2.0"
@@ -8,6 +8,3 @@ repository = "https://github.com/servo/heapsize"
 
 [features]
 unstable = []
-
-[dependencies]
-libc = "0.2"
