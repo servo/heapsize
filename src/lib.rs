@@ -33,12 +33,16 @@ extern {
     fn je_malloc_usable_size(ptr: *const c_void) -> size_t;
 }
 
-// A wrapper for je_malloc_usable_size that handles `EMPTY` and returns `usize`.
-pub fn heap_size_of(ptr: *const c_void) -> usize {
+/// A wrapper for je_malloc_usable_size that handles `EMPTY` and returns `usize`.
+///
+/// `unsafe` because the caller must ensure that the pointer is from jemalloc.
+/// FIXME: This probably interacts badly with custom allocators:
+/// https://doc.rust-lang.org/book/custom-allocators.html
+pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
     if ptr == 0x01 as *const c_void {
         0
     } else {
-        unsafe { je_malloc_usable_size(ptr) as usize }
+        je_malloc_usable_size(ptr) as usize
     }
 }
 
@@ -71,13 +75,17 @@ pub trait HeapSizeOf {
 impl<T: HeapSizeOf> HeapSizeOf for Box<T> {
     fn heap_size_of_children(&self) -> usize {
         // Measure size of `self`.
-        heap_size_of(&**self as *const T as *const c_void) + (**self).heap_size_of_children()
+        unsafe {
+            heap_size_of(&**self as *const T as *const c_void) + (**self).heap_size_of_children()
+        }
     }
 }
 
 impl HeapSizeOf for String {
     fn heap_size_of_children(&self) -> usize {
-        heap_size_of(self.as_ptr() as *const c_void)
+        unsafe {
+            heap_size_of(self.as_ptr() as *const c_void)
+        }
     }
 }
 
@@ -146,8 +154,10 @@ impl<T: HeapSizeOf + Copy> HeapSizeOf for Cell<T> {
 
 impl<T: HeapSizeOf> HeapSizeOf for Vec<T> {
     fn heap_size_of_children(&self) -> usize {
-        heap_size_of(self.as_ptr() as *const c_void) +
-            self.iter().fold(0, |n, elem| n + elem.heap_size_of_children())
+        unsafe {
+            heap_size_of(self.as_ptr() as *const c_void)
+                + self.iter().fold(0, |n, elem| n + elem.heap_size_of_children())
+        }
     }
 }
 
@@ -155,7 +165,9 @@ impl<T> HeapSizeOf for Vec<Rc<T>> {
     fn heap_size_of_children(&self) -> usize {
         // The fate of measuring Rc<T> is still undecided, but we still want to measure
         // the space used for storing them.
-        heap_size_of(self.as_ptr() as *const c_void)
+        unsafe {
+            heap_size_of(self.as_ptr() as *const c_void)
+        }
     }
 }
 
