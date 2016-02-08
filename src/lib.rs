@@ -4,9 +4,6 @@
 
 //! Data structure measurement.
 
-extern crate libc;
-
-use libc::{c_void, size_t};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap, LinkedList};
@@ -16,6 +13,7 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::os::raw::c_void;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
 use std::rc::Rc;
@@ -30,7 +28,7 @@ extern {
     // platforms `JEMALLOC_USABLE_SIZE_CONST` is `const` and on some it is empty. But in practice
     // this function doesn't modify the contents of the block that `ptr` points to, so we use
     // `*const c_void` here.
-    fn je_malloc_usable_size(ptr: *const c_void) -> size_t;
+    fn je_malloc_usable_size(ptr: *const c_void) -> usize;
 }
 
 /// A wrapper for je_malloc_usable_size that handles `EMPTY` and returns `usize`.
@@ -42,7 +40,7 @@ pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
     if ptr == 0x01 as *const c_void {
         0
     } else {
-        je_malloc_usable_size(ptr) as usize
+        je_malloc_usable_size(ptr)
     }
 }
 

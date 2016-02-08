@@ -8,6 +8,3 @@ repository = "https://github.com/servo/heapsize"
 
 [features]
 unstable = []
-
-[dependencies]
-libc = "0.2"
