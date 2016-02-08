@@ -71,7 +71,14 @@ fn test_heap_size() {
     assert_eq!(x.heap_size_of_children(), 8);
 
     // An ascii string with 16 chars is 16 bytes in UTF-8.
-    assert_eq!(String::from("0123456789abcdef").heap_size_of_children(), 16);
+    let string = String::from("0123456789abcdef");
+    assert_eq!(string.heap_size_of_children(), 16);
+
+    let string_ref: (&String, ()) = (&string, ());
+    assert_eq!(string_ref.heap_size_of_children(), 0);
+
+    let slice: &str = &*string;
+    assert_eq!(slice.heap_size_of_children(), 0);
 
     // Not on the heap.
     let x: Option<i32> = None;
