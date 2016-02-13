@@ -12,4 +12,4 @@ path = "src/lib.rs"
 plugin = true
 
 [dev-dependencies]
-heapsize = {path = ".."}
+heapsize = {path = "..", version = "0.3"}
