@@ -58,7 +58,7 @@ fn heap_size_substructure(cx: &mut ExtCtxt, trait_span: Span, substr: &Substruct
            .find(|ref a| {
                if a.check_name("ignore_heap_size_of") {
                    match a.node.value.node {
-                       MetaNameValue(..) => (),
+                       MetaItemKind::NameValue(..) => (),
                        _ => cx.span_err(a.span, "#[ignore_heap_size_of] \
                                                  should have an explanation, \
                                                  e.g. #[ignore_heap_size_of = \"\"]")
@@ -72,7 +72,7 @@ fn heap_size_substructure(cx: &mut ExtCtxt, trait_span: Span, substr: &Substruct
         if has_ignore {
             acc
         } else {
-            cx.expr_binary(item.span, BiAdd, acc,
+            cx.expr_binary(item.span, BinOpKind::Add, acc,
                            cx.expr_method_call(item.span,
                                                item.self_.clone(),
                                                substr.method_ident,
