@@ -18,6 +18,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
 use std::rc::Rc;
 
+#[cfg(not(target_os = "windows"))]
 extern {
     // Get the size of a heap block.
     //
@@ -36,12 +37,19 @@ extern {
 /// `unsafe` because the caller must ensure that the pointer is from jemalloc.
 /// FIXME: This probably interacts badly with custom allocators:
 /// https://doc.rust-lang.org/book/custom-allocators.html
+#[cfg(not(target_os = "windows"))]
 pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
     if ptr == 0x01 as *const c_void {
         0
     } else {
         je_malloc_usable_size(ptr)
     }
+}
+
+/// FIXME: Need to implement heap size support on Windows.
+#[cfg(target_os = "windows")]
+pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
+    0
 }
 
 // The simplest trait for measuring the size of heap data structures. More complex traits that
