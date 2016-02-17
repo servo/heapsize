@@ -6,7 +6,7 @@
 
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeMap, HashMap, LinkedList};
+use std::collections::{BTreeMap, HashMap, LinkedList, VecDeque};
 #[cfg(feature = "unstable")]
 use std::hash::BuildHasher;
 use std::hash::Hash;
@@ -160,10 +160,18 @@ impl<T: HeapSizeOf + Copy> HeapSizeOf for Cell<T> {
 
 impl<T: HeapSizeOf> HeapSizeOf for Vec<T> {
     fn heap_size_of_children(&self) -> usize {
-        unsafe {
-            heap_size_of(self.as_ptr() as *const c_void)
-                + self.iter().fold(0, |n, elem| n + elem.heap_size_of_children())
-        }
+        self.iter().fold(
+            unsafe { heap_size_of(self.as_ptr() as *const c_void) },
+            |n, elem| n + elem.heap_size_of_children())
+    }
+}
+
+impl<T: HeapSizeOf> HeapSizeOf for VecDeque<T> {
+    fn heap_size_of_children(&self) -> usize {
+        self.iter().fold(
+            // FIXME: get the buffer pointer for heap_size_of(), capacity() is a lower bound:
+            self.capacity() * size_of::<T>(),
+            |n, elem| n + elem.heap_size_of_children())
     }
 }
 
