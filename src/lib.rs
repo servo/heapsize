@@ -20,6 +20,7 @@ use std::rc::Rc;
 
 #[cfg(not(target_os = "windows"))]
 extern {
+    #![cfg_attr(feature = "nightly", link(name = "malloc_usable_size"))]
     // Get the size of a heap block.
     //
     // Ideally Rust would expose a function like this in std::rt::heap, which would avoid the
@@ -29,7 +30,7 @@ extern {
     // platforms `JEMALLOC_USABLE_SIZE_CONST` is `const` and on some it is empty. But in practice
     // this function doesn't modify the contents of the block that `ptr` points to, so we use
     // `*const c_void` here.
-    fn malloc_usable_size(ptr: *const c_void) -> usize;
+    fn je_malloc_usable_size(ptr: *const c_void) -> usize;
 }
 
 /// A wrapper for je_malloc_usable_size that handles `EMPTY` and returns `usize`.
@@ -42,7 +43,7 @@ pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
     if ptr == 0x01 as *const c_void {
         0
     } else {
-        malloc_usable_size(ptr)
+        je_malloc_usable_size(ptr)
     }
 }
 
