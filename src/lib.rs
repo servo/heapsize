@@ -20,6 +20,7 @@ use std::rc::Rc;
 
 #[cfg(not(target_os = "windows"))]
 extern {
+    #![cfg_attr(feature = "nightly", link(name = "malloc_usable_size"))]
     // Get the size of a heap block.
     //
     // Ideally Rust would expose a function like this in std::rt::heap, which would avoid the

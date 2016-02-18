@@ -8,3 +8,4 @@ repository = "https://github.com/servo/heapsize"
 
 [features]
 unstable = []
+nightly = []
