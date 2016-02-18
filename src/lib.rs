@@ -29,7 +29,7 @@ extern {
     // platforms `JEMALLOC_USABLE_SIZE_CONST` is `const` and on some it is empty. But in practice
     // this function doesn't modify the contents of the block that `ptr` points to, so we use
     // `*const c_void` here.
-    fn je_malloc_usable_size(ptr: *const c_void) -> usize;
+    fn malloc_usable_size(ptr: *const c_void) -> usize;
 }
 
 /// A wrapper for je_malloc_usable_size that handles `EMPTY` and returns `usize`.
@@ -42,7 +42,7 @@ pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
     if ptr == 0x01 as *const c_void {
         0
     } else {
-        je_malloc_usable_size(ptr)
+        malloc_usable_size(ptr)
     }
 }
 
