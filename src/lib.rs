@@ -18,38 +18,41 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
 use std::rc::Rc;
 
-#[cfg(not(target_os = "windows"))]
-extern {
-    // Get the size of a heap block.
-    //
-    // Ideally Rust would expose a function like this in std::rt::heap, which would avoid the
-    // jemalloc dependence.
-    //
-    // The C prototype is `je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)`. On some
-    // platforms `JEMALLOC_USABLE_SIZE_CONST` is `const` and on some it is empty. But in practice
-    // this function doesn't modify the contents of the block that `ptr` points to, so we use
-    // `*const c_void` here.
-    fn je_malloc_usable_size(ptr: *const c_void) -> usize;
-}
-
-/// A wrapper for je_malloc_usable_size that handles `EMPTY` and returns `usize`.
+/// Get the size of a heap block.
+///
+/// Ideally Rust would expose a function like this in std::rt::heap, which would avoid the
+/// jemalloc dependence.
 ///
 /// `unsafe` because the caller must ensure that the pointer is from jemalloc.
 /// FIXME: This probably interacts badly with custom allocators:
 /// https://doc.rust-lang.org/book/custom-allocators.html
-#[cfg(not(target_os = "windows"))]
 pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
     if ptr == 0x01 as *const c_void {
         0
     } else {
-        je_malloc_usable_size(ptr)
+        heap_size_of_impl(ptr)
     }
 }
 
-/// FIXME: Need to implement heap size support on Windows.
+#[cfg(not(target_os = "windows"))]
+unsafe fn heap_size_of_impl(ptr: *const c_void) -> usize {
+    // The C prototype is `je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)`. On some
+    // platforms `JEMALLOC_USABLE_SIZE_CONST` is `const` and on some it is empty. But in practice
+    // this function doesn't modify the contents of the block that `ptr` points to, so we use
+    // `*const c_void` here.
+    extern "C" {
+        fn je_malloc_usable_size(ptr: *const c_void) -> usize;
+    }
+    je_malloc_usable_size(ptr)
+}
+
 #[cfg(target_os = "windows")]
-pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
-    0
+pub unsafe fn heap_size_of_impl(ptr: *const c_void) -> usize {
+    extern "system" {
+        fn GetProcessHeap() -> *const c_void;
+        fn HeapSize(heap: *const c_void, flags: u32, ptr: *const c_void) -> usize;
+    }
+    HeapSize(GetProcessHeap(), 0, ptr)
 }
 
 // The simplest trait for measuring the size of heap data structures. More complex traits that
