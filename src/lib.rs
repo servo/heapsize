@@ -4,6 +4,11 @@
 
 //! Data structure measurement.
 
+#[cfg(target_os = "windows")]
+extern crate kernel32;
+
+#[cfg(target_os = "windows")]
+use kernel32::{GetProcessHeap, HeapSize, HeapValidate};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashMap, LinkedList, VecDeque};
@@ -18,38 +23,54 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
 use std::rc::Rc;
 
-#[cfg(not(target_os = "windows"))]
-extern {
-    // Get the size of a heap block.
-    //
-    // Ideally Rust would expose a function like this in std::rt::heap, which would avoid the
-    // jemalloc dependence.
-    //
-    // The C prototype is `je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)`. On some
-    // platforms `JEMALLOC_USABLE_SIZE_CONST` is `const` and on some it is empty. But in practice
-    // this function doesn't modify the contents of the block that `ptr` points to, so we use
-    // `*const c_void` here.
-    fn je_malloc_usable_size(ptr: *const c_void) -> usize;
-}
-
-/// A wrapper for je_malloc_usable_size that handles `EMPTY` and returns `usize`.
+/// Get the size of a heap block.
+///
+/// Ideally Rust would expose a function like this in std::rt::heap, which would avoid the
+/// jemalloc dependence.
 ///
 /// `unsafe` because the caller must ensure that the pointer is from jemalloc.
 /// FIXME: This probably interacts badly with custom allocators:
 /// https://doc.rust-lang.org/book/custom-allocators.html
-#[cfg(not(target_os = "windows"))]
 pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
     if ptr == 0x01 as *const c_void {
         0
     } else {
-        je_malloc_usable_size(ptr)
+        heap_size_of_impl(ptr)
     }
 }
 
-/// FIXME: Need to implement heap size support on Windows.
+#[cfg(not(target_os = "windows"))]
+unsafe fn heap_size_of_impl(ptr: *const c_void) -> usize {
+    // The C prototype is `je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)`. On some
+    // platforms `JEMALLOC_USABLE_SIZE_CONST` is `const` and on some it is empty. But in practice
+    // this function doesn't modify the contents of the block that `ptr` points to, so we use
+    // `*const c_void` here.
+    extern "C" {
+        fn je_malloc_usable_size(ptr: *const c_void) -> usize;
+    }
+    je_malloc_usable_size(ptr)
+}
+
 #[cfg(target_os = "windows")]
-pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
-    0
+pub unsafe fn heap_size_of_impl(mut ptr: *const c_void) -> usize {
+    // Copied from Rust's liballoc_system.
+    #[cfg(all(any(target_arch = "x86",
+                  target_arch = "arm",
+                  target_arch = "mips",
+                  target_arch = "mipsel",
+                  target_arch = "powerpc")))]
+    const MIN_ALIGN: usize = 8;
+    #[cfg(all(any(target_arch = "x86_64",
+                  target_arch = "aarch64")))]
+    const MIN_ALIGN: usize = 16;
+
+    let heap = GetProcessHeap();
+
+    if ptr as usize % (MIN_ALIGN * 2) != 0 && HeapValidate(heap, 0, ptr) == 0 {
+        ptr = *(ptr as *const *const c_void).offset(-1);
+    }
+
+    HeapSize(heap, 0, ptr) as usize
 }
 
 // The simplest trait for measuring the size of heap data structures. More complex traits that
