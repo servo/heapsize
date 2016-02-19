@@ -20,6 +20,8 @@ use std::rc::Rc;
 
 #[cfg(not(target_os = "windows"))]
 extern {
+    #[cfg(not(prefixed_jemalloc))]
+    #[cfg_attr(any(target_os = "macos", target_os = "android"), link_name = "je_mallocx")]
     // Get the size of a heap block.
     //
     // Ideally Rust would expose a function like this in std::rt::heap, which would avoid the
@@ -29,8 +31,14 @@ extern {
     // platforms `JEMALLOC_USABLE_SIZE_CONST` is `const` and on some it is empty. But in practice
     // this function doesn't modify the contents of the block that `ptr` points to, so we use
     // `*const c_void` here.
+    fn malloc_usable_size(ptr: *const c_void) -> usize;
+
+    #[cfg(prefixed_jemalloc)]
     fn je_malloc_usable_size(ptr: *const c_void) -> usize;
 }
+
+#[cfg(prefixed_jemalloc)]
+use je_malloc_usable_size as malloc_usable_size;
 
 /// A wrapper for je_malloc_usable_size that handles `EMPTY` and returns `usize`.
 ///
@@ -42,7 +50,7 @@ pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
     if ptr == 0x01 as *const c_void {
         0
     } else {
-        je_malloc_usable_size(ptr)
+        malloc_usable_size(ptr)
     }
 }
 
