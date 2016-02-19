@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![cfg_attr(feature= "unstable", feature(alloc, heap_api))]
+#![cfg_attr(feature= "unstable", feature(alloc, heap_api, repr_simd))]
 
 extern crate heapsize;
 
@@ -18,11 +18,15 @@ mod unstable {
     use heapsize::heap_size_of;
     use std::os::raw::c_void;
 
+    #[repr(C, simd)]
+    struct OverAligned(u64, u64, u64, u64);
+
     #[test]
     fn check_empty() {
         assert_eq!(::EMPTY, alloc::heap::EMPTY);
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[test]
     fn test_alloc() {
         unsafe {
@@ -40,7 +44,52 @@ mod unstable {
             let x = alloc::heap::allocate(1024 * 1024, 0);
             assert_eq!(heap_size_of(x as *const c_void), 1024 * 1024);
             alloc::heap::deallocate(x, 1024 * 1024, 0);
+
+            // An overaligned 1MiB request is allocated exactly.
+            let x = alloc::heap::allocate(1024 * 1024, 32);
+            assert_eq!(heap_size_of(x as *const c_void), 1024 * 1024);
+            alloc::heap::deallocate(x, 1024 * 1024, 32);
         }
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_alloc() {
+        unsafe {
+            // A 64 byte request is allocated exactly.
+            let x = alloc::heap::allocate(64, 0);
+            assert_eq!(heap_size_of(x as *const c_void), 64);
+            alloc::heap::deallocate(x, 64, 0);
+
+            // A 255 byte request is allocated exactly.
+            let x = alloc::heap::allocate(255, 0);
+            assert_eq!(heap_size_of(x as *const c_void), 255);
+            alloc::heap::deallocate(x, 255, 0);
+
+            // A 1MiB request is allocated exactly.
+            let x = alloc::heap::allocate(1024 * 1024, 0);
+            assert_eq!(heap_size_of(x as *const c_void), 1024 * 1024);
+            alloc::heap::deallocate(x, 1024 * 1024, 0);
+
+            // An overaligned 1MiB request is over-allocated.
+            let x = alloc::heap::allocate(1024 * 1024, 32);
+            assert_eq!(heap_size_of(x as *const c_void), 1024 * 1024 + 32);
+            alloc::heap::deallocate(x, 1024 * 1024, 32);
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn test_simd() {
+        let x = Box::new(OverAligned(0, 0, 0, 0));
+        assert_eq!(unsafe { heap_size_of(&*x as *const _ as *const c_void) }, 32);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_simd() {
+        let x = Box::new(OverAligned(0, 0, 0, 0));
+        assert_eq!(unsafe { heap_size_of(&*x as *const _ as *const c_void) }, 32 + 32);
     }
 }
 
