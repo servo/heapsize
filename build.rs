@@ -1,31 +1,26 @@
-extern crate semver;
-extern crate chrono;
+extern crate regex;
 
 use std::env::var;
 use std::process::Command;
-use semver::Version;
-use chrono::NaiveDate;
+use std::str;
 
 fn main() {
-    let unprefixed_jemalloc_version: Version = "1.8.0-dev".parse().unwrap();
-    let unprefixed_jemalloc_day: NaiveDate = "2016-02-16".parse().unwrap();
-
-    let rustc_version_string = Command::new(var("RUSTC").unwrap_or("rustc".into()))
-        .arg("--version").output().ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
+    let version_line = Command::new(var("RUSTC").unwrap_or("rustc".into()))
+        .arg("--version")
+        .output()
+        .unwrap()
+        .stdout;
+    let captures = regex::Regex::new(r"rustc (\d+)\.(\d+)\.(\d+).+(\d{4}-\d{2}-\d{2})\)")
+        .unwrap()
+        .captures(str::from_utf8(&version_line).unwrap())
         .unwrap();
-    let rustc_version: Version = rustc_version_string.split_whitespace()
-        .skip(1).next()
-        .and_then(|r| r.parse().ok())
-        .unwrap();
-    let rustc_day: NaiveDate = rustc_version_string.split_whitespace()
-        .last()
-        .and_then(|r| r[..r.len()-1].parse().ok())
-        .unwrap();
-
-    if rustc_day < unprefixed_jemalloc_day
-        || rustc_version < unprefixed_jemalloc_version
-    {
+    let version = (
+        captures[1].parse::<u32>().unwrap(),
+        captures[2].parse::<u32>().unwrap(),
+        captures[3].parse::<u32>().unwrap(),
+        &captures[4],
+    );
+    if version < (1, 8, 0, "2016-02-14") {
         println!("cargo:rustc-cfg=prefixed_jemalloc");
     }
 }

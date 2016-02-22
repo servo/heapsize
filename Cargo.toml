@@ -8,8 +8,7 @@ repository = "https://github.com/servo/heapsize"
 build = "build.rs"
 
 [build-dependencies]
-semver = "0.2"
-chrono = "0.2"
+regex = "0.1"
 
 [features]
 unstable = []
