@@ -8,6 +8,10 @@ rust:
  - beta
  - stable
 
+os:
+  - linux
+  - osx
+
 notifications:
   webhooks: http://build.servo.org:54856/travis
 
