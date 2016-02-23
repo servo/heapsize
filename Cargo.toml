@@ -7,9 +7,6 @@ license = "MPL-2.0"
 repository = "https://github.com/servo/heapsize"
 build = "build.rs"
 
-[build-dependencies]
-regex = "0.1"
-
 [dependencies]
 kernel32-sys = "0.2.1"
 
