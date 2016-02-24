@@ -11,7 +11,7 @@ extern crate kernel32;
 use kernel32::{GetProcessHeap, HeapSize, HeapValidate};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeMap, HashMap, LinkedList, VecDeque};
+use std::collections::{BTreeMap, HashSet, HashMap, LinkedList, VecDeque};
 #[cfg(feature = "unstable")]
 use std::hash::BuildHasher;
 use std::hash::Hash;
@@ -192,6 +192,30 @@ impl<T> HeapSizeOf for Vec<Rc<T>> {
         unsafe {
             heap_size_of(self.as_ptr() as *const c_void)
         }
+    }
+}
+
+#[cfg(feature = "unstable")]
+impl<T: HeapSizeOf, S> HeapSizeOf for HashSet<T, S>
+    where T: Eq + Hash, S: BuildHasher {
+    fn heap_size_of_children(&self) -> usize {
+        //TODO(#6908) measure actual bucket memory usage instead of approximating
+        let size = self.capacity() * size_of::<T>();
+        self.iter().fold(size, |n, value| {
+            n + value.heap_size_of_children()
+        })
+    }
+}
+
+#[cfg(not(feature = "unstable"))]
+impl<T: HeapSizeOf> HeapSizeOf for HashSet<T>
+    where T: Eq + Hash {
+    fn heap_size_of_children(&self) -> usize {
+        //TODO(#6908) measure actual bucket memory usage instead of approximating
+        let size = self.capacity() * size_of::<T>();
+        self.iter().fold(size, |n, value| {
+            n + value.heap_size_of_children()
+        })
     }
 }
 
