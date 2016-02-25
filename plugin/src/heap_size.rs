@@ -49,7 +49,7 @@ pub fn expand_heap_size(cx: &mut ExtCtxt, span: Span, mitem: &MetaItem,
 /// Defines how the implementation for `heap_size_of_children()` is to be generated.
 fn heap_size_substructure(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Expr> {
     let fields = match *substr.fields {
-        Struct(ref fs) | EnumMatching(_, _, ref fs) => fs,
+        Struct(_, ref fs) | EnumMatching(_, _, ref fs) => fs,
         _ => cx.span_bug(trait_span, "impossible substructure in `#[derive(HeapSizeOf)]`")
     };
 
