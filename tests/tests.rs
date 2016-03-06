@@ -156,4 +156,7 @@ fn test_heap_size() {
     // Four elements, 8 bytes per element.
     let x = vec![0i64, 1i64, 2i64, 3i64];
     assert_eq!(x.heap_size_of_children(), 32);
+
+    // Dynamically-sized slice.
+    assert_eq!(Box::new(["raclette".to_owned()]).heap_size_of_children(), 8);
 }
