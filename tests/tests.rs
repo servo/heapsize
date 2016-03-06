@@ -7,6 +7,7 @@
 extern crate heapsize;
 
 use heapsize::{HeapSizeOf, heap_size_of};
+use std::mem::size_of;
 use std::os::raw::c_void;
 
 pub const EMPTY: *mut () = 0x1 as *mut ();
@@ -141,13 +142,14 @@ fn test_heap_size() {
     let x = Some(Box::new(0i64));
     assert_eq!(x.heap_size_of_children(), 8);
 
-    // Not on the heap.
     let x = ::std::sync::Arc::new(0i64);
-    assert_eq!(x.heap_size_of_children(), 0);
+    assert_eq!(x.heap_size_of_children(),
+               if cfg!(feature = "unstable") { size_of::<usize>() * 2 + 8 } else { 0 });
 
-    // The `Arc` is not on the heap, but the Box is.
+    // `ArcInner<Box<_>>` has 2 refcounts + a pointer on the heap.
     let x = ::std::sync::Arc::new(Box::new(0i64));
-    assert_eq!(x.heap_size_of_children(), 8);
+    assert_eq!(x.heap_size_of_children(),
+               if cfg!(feature = "unstable") { size_of::<usize>() * 3 + 8 } else { 0 });
 
     // Zero elements, no heap storage.
     let x: Vec<i64> = vec![];

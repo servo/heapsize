@@ -4,6 +4,8 @@
 
 //! Data structure measurement.
 
+#![cfg_attr(feature = "unstable", feature(rc_counts, arc_counts))]
+
 #[cfg(target_os = "windows")]
 extern crate kernel32;
 
@@ -16,7 +18,7 @@ use std::collections::{BTreeMap, HashMap, LinkedList, VecDeque};
 use std::hash::BuildHasher;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use std::mem::size_of;
+use std::mem::{size_of, size_of_val};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::os::raw::c_void;
 use std::sync::Arc;
@@ -45,7 +47,7 @@ unsafe fn heap_size_of_impl(ptr: *const c_void) -> usize {
     // this function doesn't modify the contents of the block that `ptr` points to, so we use
     // `*const c_void` here.
     extern "C" {
-		#[cfg_attr(any(prefixed_jemalloc, target_os = "macos", target_os = "android"), link_name = "je_malloc_usable_size")]
+        #[cfg_attr(any(prefixed_jemalloc, target_os = "macos", target_os = "android"), link_name = "je_malloc_usable_size")]
         fn malloc_usable_size(ptr: *const c_void) -> usize;
     }
     malloc_usable_size(ptr)
@@ -150,12 +152,6 @@ impl<T: HeapSizeOf, U: HeapSizeOf> HeapSizeOf for (T, U) {
     }
 }
 
-impl<T: HeapSizeOf> HeapSizeOf for Arc<T> {
-    fn heap_size_of_children(&self) -> usize {
-        (**self).heap_size_of_children()
-    }
-}
-
 impl<T: HeapSizeOf> HeapSizeOf for RefCell<T> {
     fn heap_size_of_children(&self) -> usize {
         self.borrow().heap_size_of_children()
@@ -185,14 +181,42 @@ impl<T: HeapSizeOf> HeapSizeOf for VecDeque<T> {
     }
 }
 
-impl<T> HeapSizeOf for Vec<Rc<T>> {
+impl<T: HeapSizeOf> HeapSizeOf for Rc<T> {
+    #[cfg(not(feature = "unstable"))]
     fn heap_size_of_children(&self) -> usize {
-        // The fate of measuring Rc<T> is still undecided, but we still want to measure
-        // the space used for storing them.
-        unsafe {
-            heap_size_of(self.as_ptr() as *const c_void)
+        0
+    }
+
+    #[cfg(feature = "unstable")]
+    fn heap_size_of_children(&self) -> usize {
+        if Rc::strong_count(self) == 1 {
+            heap_size_of_rcbox::<T>(self)
+        } else {
+            0
         }
     }
+}
+
+impl<T: HeapSizeOf> HeapSizeOf for Arc<T> {
+    #[cfg(not(feature = "unstable"))]
+    fn heap_size_of_children(&self) -> usize {
+        0
+    }
+
+    #[cfg(feature = "unstable")]
+    fn heap_size_of_children(&self) -> usize {
+        if Arc::strong_count(self) == 1 {
+            heap_size_of_rcbox::<T>(self)
+        } else {
+            0
+        }
+    }
+}
+
+/// Arc<T> and Rc<T> heap-allocate `(usize, usize, T)` with strong and weak refcounts.
+#[cfg(feature = "unstable")]
+fn heap_size_of_rcbox<T: ?Sized + HeapSizeOf>(x: &T) -> usize {
+    size_of::<usize>() * 2 + size_of_val(x) + x.heap_size_of_children()
 }
 
 #[cfg(feature = "unstable")]
