@@ -15,7 +15,7 @@ pub const EMPTY: *mut () = 0x1 as *mut ();
 mod unstable {
     extern crate alloc;
 
-    use heapsize::heap_size_of;
+    use heapsize::{HeapSizeOf, heap_size_of};
     use std::os::raw::c_void;
 
     #[repr(C, simd)]
@@ -91,6 +91,12 @@ mod unstable {
         let x = Box::new(OverAligned(0, 0, 0, 0));
         assert_eq!(unsafe { heap_size_of(&*x as *const _ as *const c_void) }, 32 + 32);
     }
+
+    #[test]
+    fn test_boxed_str() {
+        let x = "raclette".to_owned().into_boxed_str();
+        assert_eq!(x.heap_size_of_children(), 8);
+    }
 }
 
 #[test]
@@ -156,4 +162,10 @@ fn test_heap_size() {
     // Four elements, 8 bytes per element.
     let x = vec![0i64, 1i64, 2i64, 3i64];
     assert_eq!(x.heap_size_of_children(), 32);
+}
+
+#[test]
+fn test_boxed_slice() {
+    let x = vec![1i64, 2i64].into_boxed_slice();
+    assert_eq!(x.heap_size_of_children(), 16)
 }

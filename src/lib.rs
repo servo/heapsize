@@ -88,12 +88,18 @@ pub trait HeapSizeOf {
 //
 // However, in the best case, the two approaches should give the same results.
 //
-impl<T: HeapSizeOf> HeapSizeOf for Box<T> {
+impl<T: HeapSizeOf + ?Sized> HeapSizeOf for Box<T> {
     fn heap_size_of_children(&self) -> usize {
         // Measure size of `self`.
         unsafe {
             heap_size_of(&**self as *const T as *const c_void) + (**self).heap_size_of_children()
         }
+    }
+}
+
+impl<T: HeapSizeOf> HeapSizeOf for [T] {
+    fn heap_size_of_children(&self) -> usize {
+        self.iter().fold(0, |size, item| size + item.heap_size_of_children())
     }
 }
 
@@ -276,7 +282,7 @@ macro_rules! known_heap_size(
     );
 );
 
-known_heap_size!(0, char);
+known_heap_size!(0, char, str);
 known_heap_size!(0, u8, u16, u32, u64, usize);
 known_heap_size!(0, i8, i16, i32, i64, isize);
 known_heap_size!(0, bool, f32, f64);
