@@ -73,7 +73,7 @@ fn heap_size_substructure(cx: &mut ExtCtxt, trait_span: Span, substr: &Substruct
         if has_ignore {
             return acc
         }
-        let field_val = match field.node.ty.node {
+        let field_val = match field.ty.node {
             // It's not possible to blanket impl HeapSizeOf on all array types
             TyKind::FixedLengthVec(..) | TyKind::Vec(..) => {
                 let expr = item.self_.clone();
