@@ -38,7 +38,8 @@ pub fn expand_heap_size(cx: &mut ExtCtxt, span: Span, mitem: &MetaItem,
                 ret_ty: ty::Literal(ty::Path::new_local("usize")),
                 attributes: vec!(),
                 is_unsafe: false,
-                combine_substructure: combine_substructure(Box::new(heap_size_substructure))
+                combine_substructure: combine_substructure(Box::new(heap_size_substructure)),
+                unify_fieldless_variants: true,
             }
         ],
         associated_types: vec![],
