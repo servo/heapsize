@@ -150,10 +150,46 @@ impl HeapSizeOf for () {
     }
 }
 
-impl<T: HeapSizeOf, U: HeapSizeOf> HeapSizeOf for (T, U) {
+impl<T1, T2> HeapSizeOf for (T1, T2)
+    where T1: HeapSizeOf, T2 :HeapSizeOf
+{
     fn heap_size_of_children(&self) -> usize {
-        self.0.heap_size_of_children() + self.1.heap_size_of_children()
+        self.0.heap_size_of_children() +
+            self.1.heap_size_of_children()
     }
+}
+
+impl<T1, T2, T3> HeapSizeOf for (T1, T2, T3)
+    where T1: HeapSizeOf, T2 :HeapSizeOf, T3: HeapSizeOf
+{
+    fn heap_size_of_children(&self) -> usize {
+        self.0.heap_size_of_children() +
+            self.1.heap_size_of_children() +
+            self.2.heap_size_of_children()
+    }
+}
+
+impl<T1, T2, T3, T4> HeapSizeOf for (T1, T2, T3, T4)
+    where T1: HeapSizeOf, T2 :HeapSizeOf, T3: HeapSizeOf, T4: HeapSizeOf
+{
+    fn heap_size_of_children(&self) -> usize {
+        self.0.heap_size_of_children() +
+            self.1.heap_size_of_children() +
+            self.2.heap_size_of_children() +
+            self.3.heap_size_of_children()
+  }
+}
+
+impl<T1, T2, T3, T4, T5> HeapSizeOf for (T1, T2, T3, T4, T5)
+    where T1: HeapSizeOf, T2 :HeapSizeOf, T3: HeapSizeOf, T4: HeapSizeOf, T5: HeapSizeOf
+{
+    fn heap_size_of_children(&self) -> usize {
+        self.0.heap_size_of_children() +
+            self.1.heap_size_of_children() +
+            self.2.heap_size_of_children() +
+            self.3.heap_size_of_children() +
+            self.4.heap_size_of_children()
+  }
 }
 
 impl<T: HeapSizeOf> HeapSizeOf for Arc<T> {
