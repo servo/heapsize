@@ -320,7 +320,7 @@ impl<K: HeapSizeOf, V: HeapSizeOf> HeapSizeOf for BTreeMap<K, V> {
 /// with known heap sizes.
 #[macro_export]
 macro_rules! known_heap_size(
-    ($size:expr, $($ty:ident),+) => (
+    ($size:expr, $($ty:ty),+) => (
         $(
             impl $crate::HeapSizeOf for $ty {
                 #[inline(always)]
