@@ -49,12 +49,13 @@ pub fn expand_heap_size(cx: &mut ExtCtxt, span: Span, mitem: &MetaItem,
 
 /// Defines how the implementation for `heap_size_of_children()` is to be generated.
 fn heap_size_substructure(cx: &mut ExtCtxt, trait_span: Span, substr: &Substructure) -> P<Expr> {
-    let fields = match *substr.fields {
-        Struct(_, ref fs) | EnumMatching(_, _, ref fs) => fs,
+    let (vd, fields) = match *substr.fields {
+        Struct(vc, ref fs) => (vc, fs),
+        EnumMatching(_, ref v, ref fs) => (&v.node.data, fs),
         _ => cx.span_bug(trait_span, "impossible substructure in `#[derive(HeapSizeOf)]`")
     };
 
-    fields.iter().fold(cx.expr_usize(trait_span, 0), |acc, ref item| {
+    vd.fields().iter().zip(fields.iter()).fold(cx.expr_usize(trait_span, 0), |acc, (ref field, ref item)| {
         let has_ignore = item.attrs.iter()
            .find(|ref a| {
                if a.check_name("ignore_heap_size_of") {
@@ -71,13 +72,30 @@ fn heap_size_substructure(cx: &mut ExtCtxt, trait_span: Span, substr: &Substruct
            })
            .is_some();
         if has_ignore {
-            acc
-        } else {
-            cx.expr_binary(item.span, BinOpKind::Add, acc,
-                           cx.expr_method_call(item.span,
-                                               item.self_.clone(),
-                                               substr.method_ident,
-                                               Vec::new()))
+            return acc
         }
+        let field_val = match field.ty.node {
+            // It's not possible to blanket impl HeapSizeOf on all array types
+            TyKind::FixedLengthVec(..) | TyKind::Vec(..) => {
+                let expr = item.self_.clone();
+                let ident = substr.method_ident;
+                quote_expr!(cx, 
+                    {
+                        let mut count = 0;
+                        // todo: handle nested arrays
+                        for field in $expr.iter() {
+                            count += field.$ident();
+                        }
+                        count
+                    }
+                )
+            }
+        // todo: handle tuples and mixtures of arrays and tuples
+            _ => cx.expr_method_call(item.span,
+                                     item.self_.clone(),
+                                     substr.method_ident,
+                                     Vec::new())
+        };
+        cx.expr_binary(item.span, BinOpKind::Add, acc, field_val)
     })
 }
