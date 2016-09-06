@@ -16,7 +16,6 @@ use syntax::ext::base::{Annotatable, ExtCtxt};
 use syntax::codemap::Span;
 use syntax::ptr::P;
 use syntax::ast::*;
-use syntax::attr::AttrMetaMethods;
 use syntax::ext::build::AstBuilder;
 use syntax_ext::deriving::generic::*;
 
@@ -29,6 +28,7 @@ pub fn expand_heap_size(cx: &mut ExtCtxt, span: Span, mitem: &MetaItem,
         path: ty::Path::new(vec!("heapsize", "HeapSizeOf")),
         additional_bounds: Vec::new(),
         generics: ty::LifetimeBounds::empty(),
+        supports_unions: true,
         methods: vec![
             MethodDef {
                 name: "heap_size_of_children",
