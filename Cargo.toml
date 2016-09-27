@@ -1,6 +1,6 @@
 [package]
 name = "heapsize"
-version = "0.3.6"
+version = "0.3.7"
 authors = [ "The Servo Project Developers" ]
 description = "Infrastructure for measuring the total runtime size of an object on the heap"
 license = "MPL-2.0"
@@ -9,6 +9,7 @@ build = "build.rs"
 
 [dependencies]
 kernel32-sys = "0.2.1"
+parking_lot = { version = "0.3", optional = true }
 
 [features]
 unstable = []

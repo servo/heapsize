@@ -7,6 +7,9 @@
 #[cfg(target_os = "windows")]
 extern crate kernel32;
 
+#[cfg(feature = "parking_lot")]
+extern crate parking_lot;
+
 #[cfg(target_os = "windows")]
 use kernel32::{GetProcessHeap, HeapSize, HeapValidate};
 use std::borrow::Cow;
@@ -313,6 +316,13 @@ impl<K: HeapSizeOf, V: HeapSizeOf> HeapSizeOf for BTreeMap<K, V> {
                     value.heap_size_of_children();
         }
         size
+    }
+}
+
+#[cfg(feature = "unstable")]
+impl<T: HeapSizeOf> HeapSizeOf for parking_lot::RwLock<T> {
+    fn heap_size_of_children(&self) -> usize {
+        self.read().heap_size_of_children()
     }
 }
 
