@@ -12,7 +12,6 @@ use kernel32::{GetProcessHeap, HeapSize, HeapValidate};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashSet, HashMap, LinkedList, VecDeque};
-#[cfg(feature = "unstable")]
 use std::hash::BuildHasher;
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -237,7 +236,6 @@ impl<T> HeapSizeOf for Vec<Rc<T>> {
     }
 }
 
-#[cfg(feature = "unstable")]
 impl<T: HeapSizeOf, S> HeapSizeOf for HashSet<T, S>
     where T: Eq + Hash, S: BuildHasher {
     fn heap_size_of_children(&self) -> usize {
@@ -249,33 +247,8 @@ impl<T: HeapSizeOf, S> HeapSizeOf for HashSet<T, S>
     }
 }
 
-#[cfg(not(feature = "unstable"))]
-impl<T: HeapSizeOf> HeapSizeOf for HashSet<T>
-    where T: Eq + Hash {
-    fn heap_size_of_children(&self) -> usize {
-        //TODO(#6908) measure actual bucket memory usage instead of approximating
-        let size = self.capacity() * size_of::<T>();
-        self.iter().fold(size, |n, value| {
-            n + value.heap_size_of_children()
-        })
-    }
-}
-
-#[cfg(feature = "unstable")]
 impl<K: HeapSizeOf, V: HeapSizeOf, S> HeapSizeOf for HashMap<K, V, S>
     where K: Eq + Hash, S: BuildHasher {
-    fn heap_size_of_children(&self) -> usize {
-        //TODO(#6908) measure actual bucket memory usage instead of approximating
-        let size = self.capacity() * (size_of::<V>() + size_of::<K>());
-        self.iter().fold(size, |n, (key, value)| {
-            n + key.heap_size_of_children() + value.heap_size_of_children()
-        })
-    }
-}
-
-#[cfg(not(feature = "unstable"))]
-impl<K: HeapSizeOf, V: HeapSizeOf> HeapSizeOf for HashMap<K, V>
-    where K: Eq + Hash {
     fn heap_size_of_children(&self) -> usize {
         //TODO(#6908) measure actual bucket memory usage instead of approximating
         let size = self.capacity() * (size_of::<V>() + size_of::<K>());
