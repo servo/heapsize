@@ -13,8 +13,7 @@ use proc_macro::TokenStream;
 #[proc_macro_derive(HeapSizeOf)]
 pub fn derive_heap_size_of(input: TokenStream) -> TokenStream {
     let type_ = syn::parse_macro_input(&input.to_string()).unwrap();
-    let name = &type_.ident;
-    let (impl_generics, ty_generics, where_clause) = type_.generics.split_for_impl();
+
     let variant_code = match type_.body {
         syn::Body::Struct(ref data) => {
             vec![expand_variant(type_.ident.clone().into(), data)]
@@ -29,6 +28,27 @@ pub fn derive_heap_size_of(input: TokenStream) -> TokenStream {
             }).collect()
         }
     };
+
+    let name = &type_.ident;
+    let (impl_generics, ty_generics, where_clause) = type_.generics.split_for_impl();
+    let mut where_clause = where_clause.clone();
+    for param in &type_.generics.ty_params {
+        where_clause.predicates.push(syn::WherePredicate::BoundPredicate(syn::WhereBoundPredicate {
+            bound_lifetimes: Vec::new(),
+            bounded_ty: syn::Ty::Path(None, param.ident.clone().into()),
+            bounds: vec![syn::TyParamBound::Trait(
+                syn::PolyTraitRef {
+                    bound_lifetimes: Vec::new(),
+                    trait_ref: syn::Path {
+                        global: true,
+                        segments: vec!["heapsize".into(), "HeapSizeOf".into()],
+                    }
+                },
+                syn::TraitBoundModifier::None
+            )],
+        }))
+    }
+
     let tokens = quote! {
         #type_
 
