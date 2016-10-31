@@ -7,6 +7,7 @@
 #[cfg(not(test))] extern crate proc_macro;
 #[macro_use] extern crate quote;
 extern crate syn;
+extern crate synstructure;
 
 #[cfg(not(test))]
 #[proc_macro_derive(HeapSizeOf)]
@@ -15,22 +16,27 @@ pub fn expand_token_stream(input: proc_macro::TokenStream) -> proc_macro::TokenS
 }
 
 fn expand_string(input: &str) -> String {
-    let type_ = syn::parse_macro_input(input).unwrap();
+    let mut type_ = syn::parse_macro_input(input).unwrap();
 
-    let variant_code = match type_.body {
-        syn::Body::Struct(ref data) => {
-            vec![expand_variant(type_.ident.clone().into(), data)]
+    let style = synstructure::BindStyle::Ref.into();
+    let match_body = synstructure::each_field(&mut type_, &style, |binding| {
+        let ignore = binding.field.attrs.iter().any(|attr| match attr.value {
+            syn::MetaItem::Word(ref ident) |
+            syn::MetaItem::List(ref ident, _) if ident == "ignore_heap_size_of" => {
+                panic!("#[ignore_heap_size_of] should have an explanation, \
+                        e.g. #[ignore_heap_size_of = \"because reasons\"]");
+            }
+            syn::MetaItem::NameValue(ref ident, _) if ident == "ignore_heap_size_of" => true,
+            _ => false
+        });
+        if ignore {
+            None
+        } else {
+            Some(quote! {
+                sum += ::heapsize::HeapSizeOf::heap_size_of_children(#binding);
+            })
         }
-        syn::Body::Enum(ref variants) => {
-            variants.iter().map(|variant| {
-                let path = syn::Path {
-                    global: false,
-                    segments: vec![type_.ident.clone().into(), variant.ident.clone().into()],
-                };
-                expand_variant(path, &variant.data)
-            }).collect()
-        }
-    };
+    });
 
     let name = &type_.ident;
     let (impl_generics, ty_generics, where_clause) = type_.generics.split_for_impl();
@@ -58,7 +64,7 @@ fn expand_string(input: &str) -> String {
             fn heap_size_of_children(&self) -> usize {
                 let mut sum = 0;
                 match *self {
-                    #( #variant_code )*
+                    #match_body
                 }
                 sum
             }
@@ -68,55 +74,21 @@ fn expand_string(input: &str) -> String {
     tokens.to_string()
 }
 
-fn expand_variant(path: syn::Path, variant: &syn::VariantData) -> quote::Tokens {
-    let mut fields = Vec::new();
-    let mut summed_fields = Vec::new();
-    for (i, field) in variant.fields().iter().enumerate() {
-        let ignore = field.attrs.iter().any(|attr| match attr.value {
-            syn::MetaItem::Word(ref ident) |
-            syn::MetaItem::List(ref ident, _) if ident == "ignore_heap_size_of" => {
-                panic!("#[ignore_heap_size_of] should have an explanation, \
-                        e.g. #[ignore_heap_size_of = \"because reasons\"]");
-            }
-            syn::MetaItem::NameValue(ref ident, _) if ident == "ignore_heap_size_of" => true,
-            _ => false
-        });
-
-        let ident = field.ident.clone().unwrap_or_else(|| format!("field_{}", i).into());
-        if !ignore {
-            summed_fields.push(ident.clone())
-        }
-        fields.push(ident);
-    }
-    let pattern = match *variant {
-        syn::VariantData::Unit => quote!(#path),
-        syn::VariantData::Struct(_) => quote!(#path { #( ref #fields ),* }),
-        syn::VariantData::Tuple(_) => quote!(#path ( #( ref #fields ),* )),
-    };
-    quote! {
-        #pattern => {
-            #(
-                sum += ::heapsize::HeapSizeOf::heap_size_of_children(#summed_fields);
-            )*
-        }
-    }
-}
-
 #[test]
 fn test_struct() {
     let source = "struct Foo<T> { bar: Bar, baz: T, #[ignore_heap_size_of = \"\"] z: Arc<T> }";
     let expanded = expand_string(source);
-    macro_rules! contains {
-        ($e: expr) => {
-            assert!(expanded.replace(" ", "").contains(&$e.replace(" ", "")),
-                    "{:?} does not contains {:?} (whitespace-insensitive)", expanded, $e)
+    let no_space = expanded.replace(" ", "");
+    macro_rules! match_count {
+        ($e: expr, $count: expr) => {
+            assert_eq!(no_space.matches(&$e.replace(" ", "")).count(), $count,
+                       "counting occurences of {:?} in {:?} (whitespace-insensitive)",
+                       $e, expanded)
         }
     }
-    contains!(source);
-    contains!("impl<T> ::heapsize::HeapSizeOf for Foo<T> where T: ::heapsize::HeapSizeOf {");
-    contains!("sum += ::heapsize::HeapSizeOf::heap_size_of_children(bar);");
-    contains!("sum += ::heapsize::HeapSizeOf::heap_size_of_children(baz);");
-    assert!(!expanded.replace(" ", "").contains("heap_size_of_children(z)"));
+    match_count!(source, 1);
+    match_count!("impl<T> ::heapsize::HeapSizeOf for Foo<T> where T: ::heapsize::HeapSizeOf {", 1);
+    match_count!("sum += ::heapsize::HeapSizeOf::heap_size_of_children(", 2);
 }
 
 #[should_panic(expected = "should have an explanation")]
