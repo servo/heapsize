@@ -2,17 +2,20 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![feature(proc_macro, proc_macro_lib)]
+#![cfg_attr(not(test), feature(proc_macro, proc_macro_lib))]
 
-extern crate proc_macro;
+#[cfg(not(test))] extern crate proc_macro;
 #[macro_use] extern crate quote;
 extern crate syn;
 
-use proc_macro::TokenStream;
-
+#[cfg(not(test))]
 #[proc_macro_derive(HeapSizeOf)]
-pub fn derive_heap_size_of(input: TokenStream) -> TokenStream {
-    let type_ = syn::parse_macro_input(&input.to_string()).unwrap();
+pub fn expand_token_stream(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    expand_string(&input.to_string()).parse().unwrap()
+}
+
+fn expand_string(input: &str) -> String {
+    let type_ = syn::parse_macro_input(input).unwrap();
 
     let variant_code = match type_.body {
         syn::Body::Struct(ref data) => {
@@ -64,7 +67,7 @@ pub fn derive_heap_size_of(input: TokenStream) -> TokenStream {
         }
     };
 
-    tokens.to_string().parse().unwrap()
+    tokens.to_string()
 }
 
 fn expand_variant(path: syn::Path, variant: &syn::VariantData) -> quote::Tokens {
@@ -94,4 +97,20 @@ fn expand_variant(path: syn::Path, variant: &syn::VariantData) -> quote::Tokens 
             )*
         }
     }
+}
+
+#[test]
+fn test_struct() {
+    let source = "struct Foo<T> { bar: Bar, baz: T }";
+    let expanded = expand_string(source);
+    macro_rules! contains {
+        ($e: expr) => {
+            assert!(expanded.replace(" ", "").contains(&$e.replace(" ", "")),
+                    "{:?} does not contains {:?} (whitespace-insensitive)", expanded, $e)
+        }
+    }
+    contains!(source);
+    contains!("impl<T> ::heapsize::HeapSizeOf for Foo<T> where T: ::heapsize::HeapSizeOf {");
+    contains!("sum += ::heapsize::HeapSizeOf::heap_size_of_children(bar);");
+    contains!("sum += ::heapsize::HeapSizeOf::heap_size_of_children(baz);");
 }
