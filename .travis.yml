@@ -19,4 +19,5 @@ script:
  - cargo test
  - "[ $TRAVIS_RUST_VERSION != nightly ] || cargo test --features unstable"
  - "[ $TRAVIS_RUST_VERSION != nightly ] || cargo test --manifest-path plugin/Cargo.toml"
+ - "[ $TRAVIS_RUST_VERSION != nightly ] || cargo test --manifest-path derive/Cargo.toml"
 
