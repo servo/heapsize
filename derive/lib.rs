@@ -42,10 +42,7 @@ fn expand_string(input: &str) -> String {
             bounds: vec![syn::TyParamBound::Trait(
                 syn::PolyTraitRef {
                     bound_lifetimes: Vec::new(),
-                    trait_ref: syn::Path {
-                        global: true,
-                        segments: vec!["heapsize".into(), "HeapSizeOf".into()],
-                    }
+                    trait_ref: syn::parse_path("::heapsize::HeapSizeOf").unwrap(),
                 },
                 syn::TraitBoundModifier::None
             )],
@@ -71,27 +68,16 @@ fn expand_string(input: &str) -> String {
 }
 
 fn expand_variant(path: syn::Path, variant: &syn::VariantData) -> quote::Tokens {
-    let mut open = quote::Tokens::new();
-    let mut close = quote::Tokens::new();
-    let fields = match *variant {
-        syn::VariantData::Unit => return quote!(#path => {}),
-        syn::VariantData::Struct(ref fields) => {
-            open.append("{");
-            close.append("}");
-            fields
-        }
-        syn::VariantData::Tuple(ref fields) => {
-            open.append("(");
-            close.append(")");
-            fields
-        }
-    };
-    let field: Vec<syn::Ident> = fields.iter().enumerate().map(|(i, field)| {
+    let field: &Vec<syn::Ident> = &variant.fields().iter().enumerate().map(|(i, field)| {
         field.ident.clone().unwrap_or_else(|| format!("field_{}", i).into())
     }).collect();
-    let field = &field;
+    let pattern = match *variant {
+        syn::VariantData::Unit => quote!(#path),
+        syn::VariantData::Struct(_) => quote!(#path { #( ref #field ),* }),
+        syn::VariantData::Tuple(_) => quote!(#path ( #( ref #field ),* )),
+    };
     quote! {
-        #path #open #( ref #field ),* #close => {
+        #pattern => {
             #(
                 sum += ::heapsize::HeapSizeOf::heap_size_of_children(#field);
             )*
