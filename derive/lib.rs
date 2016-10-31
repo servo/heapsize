@@ -54,6 +54,7 @@ fn expand_string(input: &str) -> String {
 
         impl #impl_generics ::heapsize::HeapSizeOf for #name #ty_generics #where_clause {
             #[inline]
+            #[allow(unused_variables, unused_mut)]
             fn heap_size_of_children(&self) -> usize {
                 let mut sum = 0;
                 match *self {
@@ -68,18 +69,34 @@ fn expand_string(input: &str) -> String {
 }
 
 fn expand_variant(path: syn::Path, variant: &syn::VariantData) -> quote::Tokens {
-    let field: &Vec<syn::Ident> = &variant.fields().iter().enumerate().map(|(i, field)| {
-        field.ident.clone().unwrap_or_else(|| format!("field_{}", i).into())
-    }).collect();
+    let mut fields = Vec::new();
+    let mut summed_fields = Vec::new();
+    for (i, field) in variant.fields().iter().enumerate() {
+        let ignore = field.attrs.iter().any(|attr| match attr.value {
+            syn::MetaItem::Word(ref ident) |
+            syn::MetaItem::List(ref ident, _) if ident == "ignore_heap_size_of" => {
+                panic!("#[ignore_heap_size_of] should have an explanation, \
+                        e.g. #[ignore_heap_size_of = \"because reasons\"]");
+            }
+            syn::MetaItem::NameValue(ref ident, _) if ident == "ignore_heap_size_of" => true,
+            _ => false
+        });
+
+        let ident = field.ident.clone().unwrap_or_else(|| format!("field_{}", i).into());
+        if !ignore {
+            summed_fields.push(ident.clone())
+        }
+        fields.push(ident);
+    }
     let pattern = match *variant {
         syn::VariantData::Unit => quote!(#path),
-        syn::VariantData::Struct(_) => quote!(#path { #( ref #field ),* }),
-        syn::VariantData::Tuple(_) => quote!(#path ( #( ref #field ),* )),
+        syn::VariantData::Struct(_) => quote!(#path { #( ref #fields ),* }),
+        syn::VariantData::Tuple(_) => quote!(#path ( #( ref #fields ),* )),
     };
     quote! {
         #pattern => {
             #(
-                sum += ::heapsize::HeapSizeOf::heap_size_of_children(#field);
+                sum += ::heapsize::HeapSizeOf::heap_size_of_children(#summed_fields);
             )*
         }
     }
@@ -87,7 +104,7 @@ fn expand_variant(path: syn::Path, variant: &syn::VariantData) -> quote::Tokens 
 
 #[test]
 fn test_struct() {
-    let source = "struct Foo<T> { bar: Bar, baz: T }";
+    let source = "struct Foo<T> { bar: Bar, baz: T, #[ignore_heap_size_of = \"\"] z: Arc<T> }";
     let expanded = expand_string(source);
     macro_rules! contains {
         ($e: expr) => {
@@ -99,4 +116,11 @@ fn test_struct() {
     contains!("impl<T> ::heapsize::HeapSizeOf for Foo<T> where T: ::heapsize::HeapSizeOf {");
     contains!("sum += ::heapsize::HeapSizeOf::heap_size_of_children(bar);");
     contains!("sum += ::heapsize::HeapSizeOf::heap_size_of_children(baz);");
+    assert!(!expanded.replace(" ", "").contains("heap_size_of_children(z)"));
+}
+
+#[should_panic(expected = "should have an explanation")]
+#[test]
+fn test_no_reason() {
+    expand_string("struct A { #[ignore_heap_size_of] b: C }");
 }
