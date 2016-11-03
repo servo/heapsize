@@ -64,7 +64,7 @@ fn expand_string(input: &str) -> String {
 
         impl #impl_generics ::heapsize::HeapSizeOf for #name #ty_generics #where_clause {
             #[inline]
-            #[allow(unused_variables, unused_mut)]
+            #[allow(unused_variables, unused_mut, unreachable_code)]
             fn heap_size_of_children(&self) -> usize {
                 let mut sum = 0;
                 match *self {
