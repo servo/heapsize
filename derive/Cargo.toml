@@ -10,6 +10,10 @@ repository = "https://github.com/servo/heapsize"
 path = "lib.rs"
 proc-macro = true
 
+[[test]]
+name = "test"
+path = "test.rs"
+
 [dependencies]
 syn = "0.9"
 quote = "0.3"

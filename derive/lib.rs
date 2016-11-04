@@ -35,6 +35,12 @@ fn expand_string(input: &str) -> String {
         });
         if ignore {
             None
+        } else if let syn::Ty::Array(..) = binding.field.ty {
+            Some(quote! {
+                for item in #binding.iter() {
+                    sum += ::heapsize::HeapSizeOf::heap_size_of_children(item);
+                }
+            })
         } else {
             Some(quote! {
                 sum += ::heapsize::HeapSizeOf::heap_size_of_children(#binding);
@@ -80,9 +86,9 @@ fn expand_string(input: &str) -> String {
 
 #[test]
 fn test_struct() {
-    let source = "struct Foo<T> { bar: Bar, baz: T, #[ignore_heap_size_of = \"\"] z: Arc<T> }";
-    let expanded = expand_string(source);
-    let no_space = expanded.replace(" ", "");
+    let mut source = "struct Foo<T> { bar: Bar, baz: T, #[ignore_heap_size_of = \"\"] z: Arc<T> }";
+    let mut expanded = expand_string(source);
+    let mut no_space = expanded.replace(" ", "");
     macro_rules! match_count {
         ($e: expr, $count: expr) => {
             assert_eq!(no_space.matches(&$e.replace(" ", "")).count(), $count,
@@ -94,6 +100,11 @@ fn test_struct() {
     match_count!("ignore_heap_size_of", 0);
     match_count!("impl<T> ::heapsize::HeapSizeOf for Foo<T> where T: ::heapsize::HeapSizeOf {", 1);
     match_count!("sum += ::heapsize::HeapSizeOf::heap_size_of_children(", 2);
+
+    source = "struct Bar([Baz; 3]);";
+    expanded = expand_string(source);
+    no_space = expanded.replace(" ", "");
+    match_count!("for item in", 1);
 }
 
 #[should_panic(expected = "should have an explanation")]
