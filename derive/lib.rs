@@ -10,7 +10,7 @@ extern crate syn;
 extern crate synstructure;
 
 #[cfg(not(test))]
-#[proc_macro_derive(HeapSizeOf)]
+#[proc_macro_derive(HeapSizeOf, attributes(ignore_heap_size_of))]
 pub fn expand_token_stream(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     expand_string(&input.to_string()).parse().unwrap()
 }
@@ -20,18 +20,16 @@ fn expand_string(input: &str) -> String {
 
     let style = synstructure::BindStyle::Ref.into();
     let match_body = synstructure::each_field(&mut type_, &style, |binding| {
-        let mut ignore = false;
-        binding.field.attrs.retain(|attr| match attr.value {
+        let ignore = binding.field.attrs.iter().any(|attr| match attr.value {
             syn::MetaItem::Word(ref ident) |
             syn::MetaItem::List(ref ident, _) if ident == "ignore_heap_size_of" => {
                 panic!("#[ignore_heap_size_of] should have an explanation, \
                         e.g. #[ignore_heap_size_of = \"because reasons\"]");
             }
             syn::MetaItem::NameValue(ref ident, _) if ident == "ignore_heap_size_of" => {
-                ignore = true;
-                false  // Don’t retain
+                true
             }
-            _ => true  // Do retain everything else
+            _ => false,
         });
         if ignore {
             None
@@ -66,8 +64,6 @@ fn expand_string(input: &str) -> String {
     }
 
     let tokens = quote! {
-        #type_
-
         impl #impl_generics ::heapsize::HeapSizeOf for #name #ty_generics #where_clause {
             #[inline]
             #[allow(unused_variables, unused_mut, unreachable_code)]
@@ -96,7 +92,7 @@ fn test_struct() {
                        $e, expanded)
         }
     }
-    match_count!("struct Foo<T> { bar: Bar, baz: T, z: Arc<T> }", 1);
+    match_count!("struct", 0);
     match_count!("ignore_heap_size_of", 0);
     match_count!("impl<T> ::heapsize::HeapSizeOf for Foo<T> where T: ::heapsize::HeapSizeOf {", 1);
     match_count!("sum += ::heapsize::HeapSizeOf::heap_size_of_children(", 2);
