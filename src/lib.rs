@@ -240,7 +240,7 @@ impl<T: HeapSizeOf, S> HeapSizeOf for HashSet<T, S>
     where T: Eq + Hash, S: BuildHasher {
     fn heap_size_of_children(&self) -> usize {
         //TODO(#6908) measure actual bucket memory usage instead of approximating
-        let size = self.capacity() * size_of::<T>() + size_of::<usize>();
+        let size = self.capacity() * (size_of::<T>() + size_of::<usize>());
         self.iter().fold(size, |n, value| {
             n + value.heap_size_of_children()
         })
