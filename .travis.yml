@@ -1,9 +1,6 @@
 language: rust
 rust:
- # Jemalloc prefixing change between these two versions
- - nightly-2016-02-14
- - nightly-2016-02-17
-
+ - 1.8.0
  - nightly
  - beta
  - stable
