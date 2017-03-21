@@ -51,7 +51,7 @@ unsafe fn heap_size_of_impl(ptr: *const c_void) -> usize {
 }
 
 #[cfg(target_os = "windows")]
-pub unsafe fn heap_size_of_impl(mut ptr: *const c_void) -> usize {
+unsafe fn heap_size_of_impl(mut ptr: *const c_void) -> usize {
     let heap = GetProcessHeap();
 
     if HeapValidate(heap, 0, ptr) == 0 {
