@@ -116,6 +116,25 @@ impl<'a, T: ?Sized> HeapSizeOf for &'a T {
     }
 }
 
+// The implementations for *mut T and *const T are designed for use cases like LinkedHashMap where
+// you have a data structure which internally maintains an e.g. HashMap parameterized with raw
+// pointers. We want to be able to rely on the standard HeapSizeOf implementation for `HashMap`,
+// and can handle the contribution of the raw pointers manually.
+//
+// These have to return 0 since we don't know if the pointer is pointing to a heap allocation or
+// even valid memory.
+impl<T: ?Sized> HeapSizeOf for *mut T {
+    fn heap_size_of_children(&self) -> usize {
+        0
+    }
+}
+
+impl<T: ?Sized> HeapSizeOf for *const T {
+    fn heap_size_of_children(&self) -> usize {
+        0
+    }
+}
+
 impl<T: HeapSizeOf> HeapSizeOf for Option<T> {
     fn heap_size_of_children(&self) -> usize {
         match *self {
