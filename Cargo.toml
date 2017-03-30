@@ -12,3 +12,6 @@ kernel32-sys = "0.2.1"
 
 [features]
 unstable = []
+
+# https://github.com/servo/heapsize/issues/74
+flexible-tests = []
