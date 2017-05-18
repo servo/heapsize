@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, HashSet, HashMap, LinkedList, VecDeque};
 use std::hash::BuildHasher;
 use std::hash::Hash;
 use std::marker::PhantomData;
-use std::mem::size_of;
+use std::mem::{size_of, align_of};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::os::raw::c_void;
 use std::sync::Arc;
@@ -29,11 +29,11 @@ use std::rc::Rc;
 /// `unsafe` because the caller must ensure that the pointer is from jemalloc.
 /// FIXME: This probably interacts badly with custom allocators:
 /// https://doc.rust-lang.org/book/custom-allocators.html
-pub unsafe fn heap_size_of(ptr: *const c_void) -> usize {
-    if ptr == 0x01 as *const c_void {
+pub unsafe fn heap_size_of<T>(ptr: *const T) -> usize {
+    if ptr as usize <= align_of::<T>() {
         0
     } else {
-        heap_size_of_impl(ptr)
+        heap_size_of_impl(ptr as *const c_void)
     }
 }
 
@@ -105,7 +105,7 @@ impl<T: HeapSizeOf> HeapSizeOf for [T] {
 impl HeapSizeOf for String {
     fn heap_size_of_children(&self) -> usize {
         unsafe {
-            heap_size_of(self.as_ptr() as *const c_void)
+            heap_size_of(self.as_ptr())
         }
     }
 }
@@ -231,7 +231,7 @@ impl<T: HeapSizeOf + Copy> HeapSizeOf for Cell<T> {
 impl<T: HeapSizeOf> HeapSizeOf for Vec<T> {
     fn heap_size_of_children(&self) -> usize {
         self.iter().fold(
-            unsafe { heap_size_of(self.as_ptr() as *const c_void) },
+            unsafe { heap_size_of(self.as_ptr()) },
             |n, elem| n + elem.heap_size_of_children())
     }
 }
@@ -250,7 +250,7 @@ impl<T> HeapSizeOf for Vec<Rc<T>> {
         // The fate of measuring Rc<T> is still undecided, but we still want to measure
         // the space used for storing them.
         unsafe {
-            heap_size_of(self.as_ptr() as *const c_void)
+            heap_size_of(self.as_ptr())
         }
     }
 }
