@@ -13,7 +13,7 @@ notifications:
   webhooks: http://build.servo.org:54856/travis
 
 script:
- - cargo test
- - "[ $TRAVIS_RUST_VERSION != nightly ] || cargo test --features unstable"
+ - cargo test --features jemalloc
+ - "[ $TRAVIS_RUST_VERSION != nightly ] || cargo test --features unstable,jemalloc"
  - "[[ $TRAVIS_RUST_VERSION != nightly && $TRAVIS_RUST_VERSION != beta ]] || cargo test --manifest-path derive/Cargo.toml"
 
