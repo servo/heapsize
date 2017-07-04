@@ -1,6 +1,6 @@
 [package]
 name = "heapsize_derive"
-version = "0.1.4"
+version = "0.2.0"
 authors = ["The Servo Project Developers"]
 description = "Automatically generating infrastructure for measuring the total runtime size of an object on the heap"
 license = "MIT/Apache-2.0"

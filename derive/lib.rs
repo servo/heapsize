@@ -30,12 +30,12 @@ fn expand_string(input: &str) -> String {
         } else if let syn::Ty::Array(..) = binding.field.ty {
             Some(quote! {
                 for item in #binding.iter() {
-                    sum += ::heapsize::HeapSizeOf::heap_size_of_children(item);
+                    sum += ::heapsize::HeapSizeOf::heap_size_of_children(item, heap_size);
                 }
             })
         } else {
             Some(quote! {
-                sum += ::heapsize::HeapSizeOf::heap_size_of_children(#binding);
+                sum += ::heapsize::HeapSizeOf::heap_size_of_children(#binding, heap_size);
             })
         }
     });
@@ -61,7 +61,7 @@ fn expand_string(input: &str) -> String {
         impl #impl_generics ::heapsize::HeapSizeOf for #name #ty_generics #where_clause {
             #[inline]
             #[allow(unused_variables, unused_mut, unreachable_code)]
-            fn heap_size_of_children(&self) -> usize {
+            fn heap_size_of_children(&self, heap_size: ::heapsize::HeapSizeOfFn) -> usize {
                 let mut sum = 0;
                 match *self {
                     #match_body
