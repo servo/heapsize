@@ -1,6 +1,6 @@
 [package]
 name = "heapsize"
-version = "0.4.0"
+version = "0.4.1"
 authors = [ "The Servo Project Developers" ]
 description = "Infrastructure for measuring the total runtime size of an object on the heap"
 license = "MIT/Apache-2.0"
