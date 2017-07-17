@@ -14,9 +14,7 @@ use std::marker::PhantomData;
 use std::mem::{size_of, align_of};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::os::raw::c_void;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
-use std::rc::Rc;
 
 /// Get the size of a heap block.
 ///
