@@ -206,12 +206,6 @@ impl<T1, T2, T3, T4, T5> HeapSizeOf for (T1, T2, T3, T4, T5)
   }
 }
 
-impl<T: HeapSizeOf> HeapSizeOf for Arc<T> {
-    fn heap_size_of_children(&self) -> usize {
-        (**self).heap_size_of_children()
-    }
-}
-
 impl<T: HeapSizeOf> HeapSizeOf for RefCell<T> {
     fn heap_size_of_children(&self) -> usize {
         self.borrow().heap_size_of_children()
@@ -238,16 +232,6 @@ impl<T: HeapSizeOf> HeapSizeOf for VecDeque<T> {
             // FIXME: get the buffer pointer for heap_size_of(), capacity() is a lower bound:
             self.capacity() * size_of::<T>(),
             |n, elem| n + elem.heap_size_of_children())
-    }
-}
-
-impl<T> HeapSizeOf for Vec<Rc<T>> {
-    fn heap_size_of_children(&self) -> usize {
-        // The fate of measuring Rc<T> is still undecided, but we still want to measure
-        // the space used for storing them.
-        unsafe {
-            heap_size_of(self.as_ptr())
-        }
     }
 }
 
