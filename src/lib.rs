@@ -40,7 +40,7 @@ unsafe fn heap_size_of_impl(ptr: *const c_void) -> usize {
     // this function doesn't modify the contents of the block that `ptr` points to, so we use
     // `*const c_void` here.
     extern "C" {
-		#[cfg_attr(any(prefixed_jemalloc, target_os = "macos", target_os = "android"), link_name = "je_malloc_usable_size")]
+		#[cfg_attr(any(prefixed_jemalloc, target_os = "macos", target_os = "ios", target_os = "android"), link_name = "je_malloc_usable_size")]
         fn malloc_usable_size(ptr: *const c_void) -> usize;
     }
     malloc_usable_size(ptr)
