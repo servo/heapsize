@@ -13,6 +13,7 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem::{size_of, align_of};
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::ops::{Range, RangeFrom, RangeFull, RangeTo};
 use std::os::raw::c_void;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize};
@@ -304,6 +305,33 @@ impl<K: HeapSizeOf, V: HeapSizeOf> HeapSizeOf for BTreeMap<K, V> {
     }
 }
 
+impl<T> HeapSizeOf for Range<T>
+where
+    T: HeapSizeOf,
+{
+    fn heap_size_of_children(&self) -> usize {
+        self.start.heap_size_of_children() + self.end.heap_size_of_children()
+    }
+}
+
+impl<T> HeapSizeOf for RangeFrom<T>
+where
+    T: HeapSizeOf,
+{
+    fn heap_size_of_children(&self) -> usize {
+        self.start.heap_size_of_children()
+    }
+}
+
+impl<T> HeapSizeOf for RangeTo<T>
+where
+    T: HeapSizeOf,
+{
+    fn heap_size_of_children(&self) -> usize {
+        self.end.heap_size_of_children()
+    }
+}
+
 /// For use on types defined in external crates
 /// with known heap sizes.
 #[macro_export]
@@ -335,4 +363,4 @@ known_heap_size!(0, u8, u16, u32, u64, usize);
 known_heap_size!(0, i8, i16, i32, i64, isize);
 known_heap_size!(0, bool, f32, f64);
 known_heap_size!(0, AtomicBool, AtomicIsize, AtomicUsize);
-known_heap_size!(0, Ipv4Addr, Ipv6Addr);
+known_heap_size!(0, Ipv4Addr, Ipv6Addr, RangeFull);
