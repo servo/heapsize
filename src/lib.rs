@@ -1,10 +1,10 @@
 //! Data structure measurement.
 
 #[cfg(target_os = "windows")]
-extern crate kernel32;
+extern crate winapi;
 
 #[cfg(target_os = "windows")]
-use kernel32::{GetProcessHeap, HeapSize, HeapValidate};
+use winapi::um::heapapi::{GetProcessHeap, HeapSize, HeapValidate};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, HashSet, HashMap, LinkedList, VecDeque};
