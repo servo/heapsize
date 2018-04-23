@@ -7,7 +7,7 @@ extern crate winapi;
 use winapi::um::heapapi::{GetProcessHeap, HeapSize, HeapValidate};
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeMap, HashSet, HashMap, LinkedList, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashSet, HashMap, LinkedList, VecDeque};
 use std::hash::BuildHasher;
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -302,6 +302,15 @@ impl<K: HeapSizeOf, V: HeapSizeOf> HeapSizeOf for BTreeMap<K, V> {
                     value.heap_size_of_children();
         }
         size
+    }
+}
+
+impl<T: HeapSizeOf> HeapSizeOf for BTreeSet<T> {
+    fn heap_size_of_children(&self) -> usize {
+        let size = self.len() * (size_of::<T>() + size_of::<usize>());
+        self.iter().fold(size, |n, value| {
+            n + value.heap_size_of_children()
+        })
     }
 }
 
