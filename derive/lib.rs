@@ -1,104 +1,155 @@
-#[cfg(not(test))] extern crate proc_macro;
-#[macro_use] extern crate quote;
-extern crate syn;
+#[macro_use]
 extern crate synstructure;
+#[macro_use]
+extern crate quote;
+extern crate proc_macro2;
+extern crate syn;
 
-#[cfg(not(test))]
-#[proc_macro_derive(HeapSizeOf, attributes(ignore_heap_size_of))]
-pub fn expand_token_stream(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    expand_string(&input.to_string()).parse().unwrap()
-}
+use syn::{Field, Meta, MetaList, MetaNameValue, Path, Type};
 
-fn expand_string(input: &str) -> String {
-    let mut type_ = syn::parse_macro_input(input).unwrap();
+use synstructure::Structure;
 
-    let style = synstructure::BindStyle::Ref.into();
-    let match_body = synstructure::each_field(&mut type_, &style, |binding| {
-        let ignore = binding.field.attrs.iter().any(|attr| match attr.value {
-            syn::MetaItem::Word(ref ident) |
-            syn::MetaItem::List(ref ident, _) if ident == "ignore_heap_size_of" => {
-                panic!("#[ignore_heap_size_of] should have an explanation, \
-                        e.g. #[ignore_heap_size_of = \"because reasons\"]");
-            }
-            syn::MetaItem::NameValue(ref ident, _) if ident == "ignore_heap_size_of" => {
-                true
-            }
-            _ => false,
-        });
-        if ignore {
-            None
-        } else if let syn::Ty::Array(..) = binding.field.ty {
-            Some(quote! {
-                for item in #binding.iter() {
-                    sum += ::heapsize::HeapSizeOf::heap_size_of_children(item);
-                }
-            })
-        } else {
-            Some(quote! {
-                sum += ::heapsize::HeapSizeOf::heap_size_of_children(#binding);
-            })
-        }
-    });
-
-    let name = &type_.ident;
-    let (impl_generics, ty_generics, where_clause) = type_.generics.split_for_impl();
-    let mut where_clause = where_clause.clone();
-    for param in &type_.generics.ty_params {
-        where_clause.predicates.push(syn::WherePredicate::BoundPredicate(syn::WhereBoundPredicate {
-            bound_lifetimes: Vec::new(),
-            bounded_ty: syn::Ty::Path(None, param.ident.clone().into()),
-            bounds: vec![syn::TyParamBound::Trait(
-                syn::PolyTraitRef {
-                    bound_lifetimes: Vec::new(),
-                    trait_ref: syn::parse_path("::heapsize::HeapSizeOf").unwrap(),
+fn heapsizeof_derive(mut s: Structure) -> proc_macro2::TokenStream {
+    let body =
+        s.filter(|bi| !should_ignore_field(bi.ast())).each(|bi| {
+            match bi.ast().ty {
+                Type::Array(_) => quote!{
+                    for item in #bi.iter() {
+                        sum += item.heap_size_of_children();
+                    }
                 },
-                syn::TraitBoundModifier::None
-            )],
-        }))
-    }
+                _ => quote!{ sum += #bi.heap_size_of_children(); },
+            }
+        });
 
-    let tokens = quote! {
-        impl #impl_generics ::heapsize::HeapSizeOf for #name #ty_generics #where_clause {
-            #[inline]
-            #[allow(unused_variables, unused_mut, unreachable_code)]
+    s.gen_impl(quote! {
+        extern crate heapsize;
+
+        gen impl heapsize::HeapSizeOf for @Self {
             fn heap_size_of_children(&self) -> usize {
                 let mut sum = 0;
-                match *self {
-                    #match_body
-                }
+
+                match *self { #body }
+
                 sum
             }
         }
-    };
-
-    tokens.to_string()
+    })
 }
 
-#[test]
-fn test_struct() {
-    let mut source = "struct Foo<T> { bar: Bar, baz: T, #[ignore_heap_size_of = \"\"] z: Arc<T> }";
-    let mut expanded = expand_string(source);
-    let mut no_space = expanded.replace(" ", "");
-    macro_rules! match_count {
-        ($e: expr, $count: expr) => {
-            assert_eq!(no_space.matches(&$e.replace(" ", "")).count(), $count,
-                       "counting occurences of {:?} in {:?} (whitespace-insensitive)",
-                       $e, expanded)
+decl_derive!([HeapSizeOf, attributes(ignore_heap_size_of)] => heapsizeof_derive);
+
+const PANIC_MSG: &str = "#[ignore_heap_size_of] should have an explanation, \
+                         e.g. #[ignore_heap_size_of = \"because reasons\"]";
+
+fn should_ignore_field(ast: &Field) -> bool {
+    for attr in &ast.attrs {
+        if pretty_path(&attr.path) == "ignore_heap_size_of" {
+            match attr.interpret_meta().unwrap() {
+                Meta::Word(ref ident)
+                | Meta::List(MetaList { ref ident, .. })
+                    if ident == "ignore_heap_size_of" =>
+                {
+                    panic!("{}", PANIC_MSG);
+                }
+                Meta::NameValue(MetaNameValue { ref ident, .. })
+                    if ident == "ignore_heap_size_of" =>
+                {
+                    return true
+                }
+                _ => {}
+            }
         }
     }
-    match_count!("struct", 0);
-    match_count!("ignore_heap_size_of", 0);
-    match_count!("impl<T> ::heapsize::HeapSizeOf for Foo<T> where T: ::heapsize::HeapSizeOf {", 1);
-    match_count!("sum += ::heapsize::HeapSizeOf::heap_size_of_children(", 2);
 
-    source = "struct Bar([Baz; 3]);";
-    expanded = expand_string(source);
-    no_space = expanded.replace(" ", "");
-    match_count!("for item in", 1);
+    false
 }
 
-#[should_panic(expected = "should have an explanation")]
-#[test]
-fn test_no_reason() {
-    expand_string("struct A { #[ignore_heap_size_of] b: C }");
+fn pretty_path(path: &Path) -> String {
+    let mut joined = path
+        .segments
+        .iter()
+        .map(|seg| seg.ident.to_string())
+        .collect::<Vec<_>>()
+        .join("::");
+
+    if path.leading_colon.is_some() {
+        joined.push_str("::");
+    }
+
+    joined
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normal_struct() {
+        test_derive! {
+            heapsizeof_derive {
+                struct Foo {
+                    a: u32,
+                    things: Vec<Foo>,
+                    array: [u32; 5],
+                }
+            }
+            expands to {
+                #[allow(non_upper_case_globals)]
+                const _DERIVE_heapsize_HeapSizeOf_FOR_Foo: () = {
+                    extern crate heapsize;
+
+                    impl heapsize::HeapSizeOf for Foo {
+                        fn heap_size_of_children(&self) -> usize {
+                            let mut sum = 0;
+                            match * self {
+                                Foo {
+                                        a: ref __binding_0,
+                                        things : ref __binding_1,
+                                        array: ref __binding_2,
+                                }
+                                => {
+                                    { sum += __binding_0.heap_size_of_children(); }
+                                    { sum += __binding_1.heap_size_of_children(); }
+                                    {
+                                         for item in __binding_2.iter() {
+                                            sum += item.heap_size_of_children();
+                                         }
+                                    }
+                                    }
+                                }
+                            sum
+                        }
+                    }
+                };
+            }
+        }
+    }
+
+    #[test]
+    fn tuple_struct() {
+        test_derive! {
+            heapsizeof_derive {
+                struct Tuple([Box<u32>; 2], Box<u8>);
+            }
+            expands to {
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "#[ignore_heap_size_of] should have an explanation"
+    )]
+    fn all_ignored_fields_require_an_explanation() {
+        test_derive! {
+            heapsizeof_derive {
+                struct Blah {
+                    #[ignore_heap_size_of]
+                    foo: u32,
+                }
+            }
+            expands to {} no_build
+        }
+    }
 }
