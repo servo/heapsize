@@ -3,6 +3,7 @@ extern crate heapsize_derive;
 extern crate heapsize;
 
 use heapsize::HeapSizeOf;
+use std::mem;
 
 #[derive(HeapSizeOf)]
 struct Tuple([Box<u32>; 2], Box<u8>);
@@ -13,6 +14,12 @@ fn tuple_struct() {
         Tuple([Box::new(1), Box::new(2)], Box::new(3)).heap_size_of_children(),
         9
     );
+}
+
+#[test]
+fn sanity_check_heapsize_works_as_expected() {
+    assert_eq!(Box::new(1_u8).heap_size_of_children(), mem::size_of::<u8>());
+    assert_eq!([Box::new(1), Box::new(2)].heap_size_of_children(), 2 * 4);
 }
 
 #[derive(HeapSizeOf)]
