@@ -5,7 +5,7 @@ extern crate quote;
 extern crate proc_macro2;
 extern crate syn;
 
-use syn::{Field, Meta, MetaList, MetaNameValue, Path, Type};
+use syn::{Field, Meta, MetaList, MetaNameValue, Type};
 
 use synstructure::Structure;
 
@@ -44,40 +44,22 @@ const PANIC_MSG: &str = "#[ignore_heap_size_of] should have an explanation, \
 
 fn should_ignore_field(ast: &Field) -> bool {
     for attr in &ast.attrs {
-        if pretty_path(&attr.path) == "ignore_heap_size_of" {
-            match attr.interpret_meta().unwrap() {
-                Meta::Word(ref ident)
-                | Meta::List(MetaList { ref ident, .. })
-                    if ident == "ignore_heap_size_of" =>
-                {
-                    panic!("{}", PANIC_MSG);
-                }
-                Meta::NameValue(MetaNameValue { ref ident, .. })
-                    if ident == "ignore_heap_size_of" =>
-                {
-                    return true
-                }
-                _ => {}
+        match attr.interpret_meta().unwrap() {
+            Meta::Word(ref ident) | Meta::List(MetaList { ref ident, .. })
+                if ident == "ignore_heap_size_of" =>
+            {
+                panic!("{}", PANIC_MSG);
             }
+            Meta::NameValue(MetaNameValue { ref ident, .. })
+                if ident == "ignore_heap_size_of" =>
+            {
+                return true
+            }
+            other => panic!("Other: {:?}", other),
         }
     }
 
     false
-}
-
-fn pretty_path(path: &Path) -> String {
-    let mut joined = path
-        .segments
-        .iter()
-        .map(|seg| seg.ident.to_string())
-        .collect::<Vec<_>>()
-        .join("::");
-
-    if path.leading_colon.is_some() {
-        joined.push_str("::");
-    }
-
-    joined
 }
 
 #[cfg(test)]
@@ -133,6 +115,34 @@ mod tests {
                 struct Tuple([Box<u32>; 2], Box<u8>);
             }
             expands to {
+                #[allow(non_upper_case_globals)]
+                const _DERIVE_heapsize_HeapSizeOf_FOR_Tuple: () = {
+                    extern crate heapsize ;
+
+                    impl heapsize::HeapSizeOf for Tuple {
+                        fn heap_size_of_children(&self) -> usize {
+                            let mut sum = 0;
+                            match *self {
+                                Tuple (
+                                    ref __binding_0,
+                                    ref __binding_1 ,
+                                    )
+                                    => {
+                                        {
+                                            for item in __binding_0.iter() {
+                                                sum += item.heap_size_of_children();
+                                            }
+                                        }
+                                        {
+                                            sum += __binding_1.heap_size_of_children();
+                                        }
+                                    }
+                            }
+
+                            sum
+                        }
+                    }
+                };
             }
         }
     }
