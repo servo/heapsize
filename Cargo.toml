@@ -6,6 +6,7 @@ description = "Infrastructure for measuring the total runtime size of an object 
 license = "MIT/Apache-2.0"
 repository = "https://github.com/servo/heapsize"
 build = "build.rs"
+exclude = ["/.travis.yml", "/appveyor.yml"]
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.4", features = ["std", "heapapi"] }
